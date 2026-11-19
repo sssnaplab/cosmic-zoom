@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Cosmic Zoom — web demo</title>
+<meta name="description" content="Pinch from the cosmic web down to a quark — 44 powers of ten in one pinch. Try it in your browser.">
+<meta property="og:title" content="Cosmic Zoom — from the cosmic web to a quark">
+<meta property="og:description" content="44 powers of ten in one pinch. Try it in your browser.">
+<meta property="og:image" content="https://sssnaplab.github.io/cosmic-zoom/img/feature_en.png">
+<meta name="theme-color" content="#000005">
+<link rel="icon" href="img/icon.png">
+<style>
+  :root { --panel: rgba(14,18,48,.82); --gold: #FFD34D; --ink: #241A00; --soft: #B8C2FF; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000005; color: #fff; overflow: hidden;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Hiragino Sans", "PingFang SC", "Noto Sans KR", sans-serif;
+    -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; display: block; }
+  #sky:active { cursor: grabbing; }
+  .hud { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
+  .hud > * { pointer-events: auto; }
+  .card { background: var(--panel); border-radius: 18px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  #title { padding: 8px 18px; text-align: center; }
+  #title-name { font-size: 22px; font-weight: 700; }
+  #title-sub { font-size: 13px; color: var(--soft); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  #toast { margin-top: 8px; background: rgba(255,211,77,.93); color: var(--ink); font-weight: 700; font-size: 15px;
+    padding: 8px 16px; border-radius: 20px; opacity: 0; transform: translateY(-8px); transition: .3s; pointer-events: none; }
+  #toast.on { opacity: 1; transform: none; }
+  .spacer { flex: 1; pointer-events: none; }
+  #fact { max-width: 520px; width: calc(100% - 48px); margin-right: 48px; padding: 14px; opacity: 0; transform: translateY(12px);
+    transition: .35s; pointer-events: none; }
+  #fact.on { opacity: 1; transform: none; }
+  #fact-head { color: var(--gold); font-weight: 700; font-size: 15px; }
+  #fact-body { font-size: 15px; line-height: 1.45; margin-top: 4px; }
+  .row { display: flex; gap: 6px; width: calc(100% - 48px); max-width: 640px; margin: 10px 48px 0 0; }
+  .pill { flex: 1; min-height: 44px; border: 0; border-radius: 22px; background: var(--panel); color: #fff; font: inherit;
+    font-size: 13px; font-weight: 700; padding: 6px; cursor: pointer; }
+  .pill.active { background: var(--gold); color: var(--ink); }
+  .pill.app { background: linear-gradient(135deg, #FFD34D, #FFB347); color: var(--ink); }
+  .menus { display: flex; gap: 6px; margin-top: 8px; }
+  .menus select { background: var(--panel); color: #fff; border: 0; border-radius: 14px; font: inherit; font-size: 12px;
+    padding: 6px 8px; max-width: 150px; }
+  #ladder { position: fixed; right: 6px; top: 19%; height: 62%; width: 40px; touch-action: none; cursor: ns-resize; }
+  #ladder::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: rgba(184,194,255,.4); }
+  #ladder-knob { position: absolute; left: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+    background: rgba(255,211,77,.33); pointer-events: none; }
+  .rung { position: absolute; left: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 0; padding: 0;
+    background: rgba(14,18,48,.6); font-size: 12px; line-height: 26px; cursor: pointer; }
+  .rung.cur { background: var(--gold); font-size: 15px; }
+  dialog { border: 0; border-radius: 22px; background: #12163A; color: #fff; max-width: min(92vw, 440px); padding: 20px; }
+  dialog::backdrop { background: rgba(0,0,10,.6); }
+  dialog h2 { margin: 0 0 10px; font-size: 20px; }
+  dialog p { white-space: pre-line; line-height: 1.55; font-size: 15px; margin: 0 0 16px; }
+  .dlg-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .btn { border: 0; border-radius: 20px; padding: 10px 16px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.gold { background: var(--gold); color: var(--ink); }
+  .btn.gold[aria-disabled] { background: #3a3f70; color: #d8dcff; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--soft); }
+  #embed-hint { display: none; }
+  /* 랜딩 페이지에 넣을 때: 메뉴를 줄이고, 저절로 돌 때는 안내만 */
+  body.embed .menus, body.embed #btn-app { display: none; }
+  body.embed.attract #embed-hint { display: block; position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+    background: rgba(255,211,77,.95); color: var(--ink); font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 20px;
+    pointer-events: none; animation: bob 2s ease-in-out infinite; white-space: nowrap; }
+  @keyframes bob { 50% { transform: translate(-50%, -4px); } }
+  @media (max-width: 380px) { .pill { font-size: 12px; } #title-name { font-size: 19px; } }
+</style>
+</head>
+<body>
+<canvas id="sky" aria-label="Cosmic Zoom"></canvas>
+
+<div class="hud">
+  <div id="title" class="card"><div id="title-name"></div><div id="title-sub"></div></div>
+  <div class="menus">
+    <select id="lang" aria-label="Language">
+      <option value="en">🌐 English</option><option value="ko">🌐 한국어</option>
+      <option value="ja">🌐 日本語</option><option value="zh">🌐 中文</option>
+    </select>
+    <select id="place" aria-label="Start"></select>
+  </div>
+  <div id="toast"></div>
+  <div class="spacer"></div>
+  <div id="fact" class="card"><div id="fact-head"></div><div id="fact-body"></div></div>
+  <div class="row">
+    <button id="btn-space" class="pill"></button>
+    <button id="btn-quark" class="pill"></button>
+    <button id="btn-app" class="pill app"></button>
+  </div>
+</div>
+
+<div id="ladder"><div id="ladder-knob"></div></div>
+<div id="embed-hint"></div>
+
+<dialog id="intro">
+  <h2 id="intro-title"></h2>
+  <p id="intro-body"></p>
+  <div class="dlg-btns"><button id="intro-go" class="btn gold"></button></div>
+</dialog>
+
+<dialog id="app-sheet">
+  <h2 id="app-title"></h2>
+  <p id="app-body"></p>
+  <div class="dlg-btns">
+    <button id="app-close" class="btn ghost"></button>
+    <a id="app-about" class="btn ghost" target="_top"></a>
+    <a id="app-play" class="btn gold" target="_blank" rel="noopener"></a>
+  </div>
+</dialog>
+
+<script src="zoom.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
