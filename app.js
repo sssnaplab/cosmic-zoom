@@ -11,10 +11,10 @@ const CONFIG = {
 // 웹에만 있는 문구
 const W = {
   intro: L(
-    "The center of the screen is YOU.\n\n🖱️ Scroll the mouse wheel, pinch on a trackpad or phone, or drag up and down.\n⬆️ Zoom in → hand, cells, atoms, all the way to quarks!\n⬇️ Zoom out → your city, Earth, galaxies, the edge of the universe!\n\nOr just press 🚀 / 🔬 and enjoy the ride.",
-    "지금 화면 가운데는 바로 '나'예요.\n\n🖱️ 마우스 휠을 굴리거나, 트랙패드·휴대폰에서 두 손가락으로 벌리고 오므리거나, 위아래로 끌어 보세요.\n⬆️ 확대 → 손, 세포, 원자, 쿼크까지!\n⬇️ 축소 → 우리 도시, 지구, 은하, 우주 끝까지!\n\n🚀 / 🔬 버튼을 누르면 저절로 여행해요.",
-    "画面のまん中は「あなた」です。\n\n🖱️ マウスホイール、トラックパッドやスマホの2本指、または上下ドラッグで。\n⬆️ 拡大 → 手、細胞、原子、クォークまで！\n⬇️ 縮小 → 街、地球、銀河、宇宙の果てまで！\n\n🚀 / 🔬 ボタンで自動の旅もできます。",
-    "屏幕中间就是“你”。\n\n🖱️ 滚动鼠标滚轮，在触控板或手机上双指缩放，或上下拖动。\n⬆️ 放大 → 手、细胞、原子，一直到夸克！\n⬇️ 缩小 → 城市、地球、星系，一直到宇宙尽头！\n\n按 🚀 / 🔬 可以自动旅行。"),
+    "The center of the screen is YOU.\n\n🖱️ Scroll the mouse wheel, pinch on a trackpad or phone, or drag up and down.\n⬆️ Zoom in → hand, cells, atoms, all the way to quarks!\n⬇️ Zoom out → your city, Earth, galaxies, the edge of the universe!\n\nOr just press 🚀 / 🔬 and enjoy the ride.\n🎓 High school or university student? Tap 🎓 Deep on the info card for the real science.",
+    "지금 화면 가운데는 바로 '나'예요.\n\n🖱️ 마우스 휠을 굴리거나, 트랙패드·휴대폰에서 두 손가락으로 벌리고 오므리거나, 위아래로 끌어 보세요.\n⬆️ 확대 → 손, 세포, 원자, 쿼크까지!\n⬇️ 축소 → 우리 도시, 지구, 은하, 우주 끝까지!\n\n🚀 / 🔬 버튼을 누르면 저절로 여행해요.\n🎓 고등학생·대학생은 설명 카드의 🎓 심화를 눌러 이론까지 살펴보세요.",
+    "画面のまん中は「あなた」です。\n\n🖱️ マウスホイール、トラックパッドやスマホの2本指、または上下ドラッグで。\n⬆️ 拡大 → 手、細胞、原子、クォークまで！\n⬇️ 縮小 → 街、地球、銀河、宇宙の果てまで！\n\n🚀 / 🔬 ボタンで自動の旅もできます。\n🎓 高校生・大学生は説明カードの 🎓 くわしく で理論までどうぞ。",
+    "屏幕中间就是“你”。\n\n🖱️ 滚动鼠标滚轮，在触控板或手机上双指缩放，或上下拖动。\n⬆️ 放大 → 手、细胞、原子，一直到夸克！\n⬇️ 缩小 → 城市、地球、星系，一直到宇宙尽头！\n\n按 🚀 / 🔬 可以自动旅行。\n🎓 高中生、大学生可点说明卡上的 🎓 深入，看看背后的理论。"),
   getApp: L("📱 Get the app", "📱 앱 받기", "📱 アプリ", "📱 下载应用"),
   appTitle: L("More in the app", "앱에서 더 많이", "アプリではもっと", "应用里还有更多"),
   appBody: L(
@@ -84,6 +84,7 @@ SESSION.place = pickPlace(I18N.lang);
 const st = {
   logW: LEVELS[START_LEVEL].logS + 0.05, time: 0, current: START_LEVEL, settled: true,
   autoDir: 0, touching: false, vel: 0, lastDrag: 0, flyTarget: null, stillTime: 0,
+  deep: store.get("deep") === "1",
   discovered: new Set([START_LEVEL]), toast: null, toastTime: 0,
   attract: EMBED, attractWait: 0, attractNext: 1,
 };
@@ -165,7 +166,7 @@ resize();
 const ui = {
   title: $("#title-name"), sub: $("#title-sub"), fact: $("#fact"), factHead: $("#fact-head"), factBody: $("#fact-body"),
   toast: $("#toast"), ladder: $("#ladder"), knob: $("#ladder-knob"), btnSpace: $("#btn-space"), btnQuark: $("#btn-quark"),
-  btnApp: $("#btn-app"), place: $("#place"), lang: $("#lang"),
+  btnApp: $("#btn-app"), place: $("#place"), lang: $("#lang"), deepChip: $("#deep-chip"),
 };
 
 function buildLadder() {
@@ -221,6 +222,8 @@ function applyLang() {
   ui.lang.title = W.lang.s;
   buildLadder(); buildMenus();
   lastTitle = "";
+  if (typeof renderChip === "function") renderChip();
+  if ($("#deep").open) openDeep(deepUi.idx);
 }
 
 $("#btn-space").addEventListener("click", () => toggleAuto(1));
@@ -231,6 +234,44 @@ $("#app-play").addEventListener("click", e => { if (!CONFIG.launched) e.preventD
 $("#app-play").href = CONFIG.play;
 $("#app-about").href = CONFIG.landing;
 $("#intro-go").addEventListener("click", () => { $("#intro").close(); store.set("intro", "1"); });
+
+// ── 심화 모드 ──────────────────────────────────────────────────────
+function deepFor(lv) { return DEEP.find(d => d.emoji === lv.emoji); }
+const deepUi = { idx: 0 };
+function renderChip() {
+  ui.deepChip.textContent = U.deepChip.s;
+  ui.deepChip.classList.toggle("on", st.deep);
+  $("#fact-more").textContent = U.readMore.s;
+  lastFact = -1;
+}
+function openDeep(i) {
+  deepUi.idx = i;
+  const lv = LEVELS[i], d = deepFor(lv);
+  if (!d) return;
+  $("#deep-title").textContent = `🎓 ${lv.emoji} ${lv.name}`;
+  $("#deep-sub").textContent = sizeText(lv.size) + "  ·  " + powerText(lv.logS);
+  $("#deep-key").textContent = d.key.s;
+  $("#h-num").textContent = U.secNumbers.s; $("#deep-num").textContent = d.numbers.s;
+  $("#h-theory").textContent = U.secTheory.s; $("#deep-theory").textContent = d.theory.s;
+  $("#h-think").textContent = U.secThink.s; $("#deep-think").textContent = d.think.s;
+  $("#deep-show").textContent = U.showAnswer.s; $("#deep-show").style.display = "";
+  const ans = $("#deep-answer"); ans.textContent = "💡 " + d.answer.s; ans.style.display = "none";
+  $("#deep-up").textContent = U.bigger.s; $("#deep-up").disabled = i <= 0;
+  $("#deep-down").textContent = U.smaller.s; $("#deep-down").disabled = i >= LEVELS.length - 1;
+  $("#deep-close").textContent = U.close.s;
+  $("#deep-scroll").scrollTop = 0;
+  if (!$("#deep").open) $("#deep").showModal();
+}
+ui.deepChip.addEventListener("click", e => {
+  e.stopPropagation(); userAct();
+  st.deep = !st.deep; store.set("deep", st.deep ? "1" : "0"); renderChip();
+});
+ui.fact.addEventListener("click", () => { if (st.deep && deepFor(LEVELS[st.current])) { userAct(); openDeep(st.current); } });
+$("#deep-show").addEventListener("click", () => { $("#deep-answer").style.display = "block"; $("#deep-show").style.display = "none"; });
+$("#deep-up").addEventListener("click", () => { const i = deepUi.idx - 1; flyTo(i); openDeep(i); });
+$("#deep-down").addEventListener("click", () => { const i = deepUi.idx + 1; flyTo(i); openDeep(i); });
+$("#deep-close").addEventListener("click", () => $("#deep").close());
+$("#deep").addEventListener("click", e => { if (e.target === $("#deep")) $("#deep").close(); });
 
 // ── 손·마우스·키보드 ───────────────────────────────────────────────
 {
@@ -294,10 +335,13 @@ function updateUi() {
   if (title !== lastTitle) { ui.title.textContent = title; lastTitle = title; }
   if (ui.sub.textContent !== sub) ui.sub.textContent = sub;
   const showFact = st.settled && !st.attract;
-  if (showFact && lastFact !== st.current) {
-    ui.factHead.textContent = fmt(U.about.s, lv.emoji, lv.name, sizeText(lv.size));
-    ui.factBody.textContent = lv.fact;
-    lastFact = st.current;
+  const key = st.current + (st.deep ? "d" : "");
+  if (showFact && lastFact !== key) {
+    const d = deepFor(lv), deepOn = st.deep && !!d;
+    ui.factHead.textContent = deepOn ? `${lv.emoji} ${lv.name}  ·  ${powerText(lv.logS)}` : fmt(U.about.s, lv.emoji, lv.name, sizeText(lv.size));
+    ui.factBody.textContent = deepOn ? d.key.s : lv.fact;
+    ui.fact.classList.toggle("deep", deepOn);
+    lastFact = key;
   }
   ui.fact.classList.toggle("on", showFact);
   if (!showFact) lastFact = -1;

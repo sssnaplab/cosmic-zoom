@@ -75,6 +75,8 @@ function Place(id, emoji, lat, lon, country, regionName, regionFact, cityName, c
   return { id, emoji, lat, lon, country, regionName, regionFact, cityName, cityFact, parkName, parkFact, river, district, mountain, labels };
 }
 const SESSION = { place: null };
+/** 심화 모드 한 단계(앱 Deep.kt) */
+function Deep(emoji, key, numbers, theory, think, answer) { return { emoji, key, numbers, theory, think, answer }; }
 
 const SPACE_BG = C(0xFF000005);
 const OCEAN = C(0xFF1F5FA8), LAND = C(0xFF5E9E4C), CITY_BASE = C(0xFFCFCAC0), GRASS = C(0xFF6DB34F);

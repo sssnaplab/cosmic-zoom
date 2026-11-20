@@ -31,8 +31,28 @@
   .spacer { flex: 1; pointer-events: none; }
   #fact { max-width: 520px; width: calc(100% - 48px); margin-right: 48px; padding: 14px; opacity: 0; transform: translateY(12px);
     transition: .35s; pointer-events: none; }
-  #fact.on { opacity: 1; transform: none; }
-  #fact-head { color: var(--gold); font-weight: 700; font-size: 15px; }
+  #fact.on { opacity: 1; transform: none; pointer-events: auto; }
+  #fact-head { color: var(--gold); font-weight: 700; font-size: 15px; flex: 1; }
+  .fact-top { display: flex; align-items: center; gap: 8px; }
+  .chip { border: 0; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    background: #2B3170; color: #fff; white-space: nowrap; }
+  .chip.on { background: var(--gold); color: var(--ink); }
+  #fact.deep { cursor: pointer; }
+  #fact-more { display: none; color: var(--gold); font-weight: 700; font-size: 14px; margin-top: 6px; }
+  #fact.deep #fact-more { display: block; }
+  #deep { width: min(94vw, 600px); max-width: none; height: min(88vh, 760px); padding: 0; }
+  #deep[open] { display: flex; flex-direction: column; }
+  #deep .head { padding: 18px 18px 8px; }
+  #deep .head h2 { margin: 0; }
+  #deep-sub { color: var(--soft); font-size: 13px; }
+  #deep-scroll { flex: 1; overflow-y: auto; padding: 0 18px 8px; -webkit-overflow-scrolling: touch; }
+  #deep-key { color: #FFE6A0; font-weight: 700; line-height: 1.5; margin: 6px 0 0; font-size: 15px; }
+  #deep h3 { color: var(--gold); font-size: 16px; margin: 16px 0 4px; }
+  #deep .txt { white-space: pre-line; line-height: 1.55; font-size: 15px; margin: 0; }
+  #deep-answer { display: none; background: #2B3170; border-radius: 12px; padding: 12px; margin-top: 10px; white-space: pre-line; line-height: 1.55; }
+  #deep .foot { display: flex; gap: 6px; align-items: center; padding: 10px 14px 14px; border-top: 1px solid #ffffff14; }
+  #deep .foot .grow { flex: 1; }
+  #deep .btn.ghost:disabled { opacity: .35; cursor: default; }
   #fact-body { font-size: 15px; line-height: 1.45; margin-top: 4px; }
   .row { display: flex; gap: 6px; width: calc(100% - 48px); max-width: 640px; margin: 10px 48px 0 0; }
   .pill { flex: 1; min-height: 44px; border: 0; border-radius: 22px; background: var(--panel); color: #fff; font: inherit;
@@ -82,7 +102,11 @@
   </div>
   <div id="toast"></div>
   <div class="spacer"></div>
-  <div id="fact" class="card"><div id="fact-head"></div><div id="fact-body"></div></div>
+  <div id="fact" class="card">
+    <div class="fact-top"><div id="fact-head"></div><button id="deep-chip" class="chip"></button></div>
+    <div id="fact-body"></div>
+    <div id="fact-more"></div>
+  </div>
   <div class="row">
     <button id="btn-space" class="pill"></button>
     <button id="btn-quark" class="pill"></button>
@@ -97,6 +121,22 @@
   <h2 id="intro-title"></h2>
   <p id="intro-body"></p>
   <div class="dlg-btns"><button id="intro-go" class="btn gold"></button></div>
+</dialog>
+
+<dialog id="deep">
+  <div class="head"><h2 id="deep-title"></h2><div id="deep-sub"></div></div>
+  <div id="deep-scroll">
+    <p id="deep-key"></p>
+    <h3 id="h-num"></h3><p class="txt" id="deep-num"></p>
+    <h3 id="h-theory"></h3><p class="txt" id="deep-theory"></p>
+    <h3 id="h-think"></h3><p class="txt" id="deep-think"></p>
+    <p><button id="deep-show" class="btn gold"></button></p>
+    <div id="deep-answer"></div>
+  </div>
+  <div class="foot">
+    <button id="deep-up" class="btn ghost"></button><button id="deep-down" class="btn ghost"></button>
+    <span class="grow"></span><button id="deep-close" class="btn gold"></button>
+  </div>
 </dialog>
 
 <dialog id="app-sheet">
