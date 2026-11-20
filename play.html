@@ -32,14 +32,39 @@
   #fact { max-width: 520px; width: calc(100% - 48px); margin-right: 48px; padding: 14px; opacity: 0; transform: translateY(12px);
     transition: .35s; pointer-events: none; }
   #fact.on { opacity: 1; transform: none; pointer-events: auto; }
-  #fact-head { color: var(--gold); font-weight: 700; font-size: 15px; flex: 1; }
+  #fact-head { color: var(--gold); font-weight: 700; font-size: 15px; margin-top: 8px; }
+  .tiers { display: flex; gap: 6px; flex-wrap: wrap; }
+  #fact-body ol { margin: 2px 0 0; padding-left: 20px; }
+  #fact-body li.done { list-style: none; margin-left: -20px; }
+  #lesson { width: min(94vw, 600px); max-width: none; height: min(88vh, 760px); padding: 0; }
+  #lesson[open] { display: flex; flex-direction: column; }
+  #lesson .head { padding: 18px 18px 8px; }
+  #lesson .head h2 { margin: 0; }
+  #ls-sub { color: var(--soft); font-size: 13px; }
+  #ls-scroll { flex: 1; overflow-y: auto; padding: 0 18px 8px; }
+  #ls-title { color: #FFE6A0; font-size: 18px; margin: 4px 0 8px; }
+  #ls-body { line-height: 1.6; font-size: 15px; margin: 0; }
+  #ls-terms { background: #1C2252; border-radius: 12px; padding: 12px; margin: 14px 0; }
+  #ls-terms h3, #lesson h3 { color: var(--gold); font-size: 15px; margin: 0 0 6px; }
+  #ls-terms p { margin: 3px 0; font-size: 14px; line-height: 1.5; color: #D8DCFF; }
+  #ls-terms b { color: #fff; }
+  #ls-q { margin: 0 0 8px; line-height: 1.5; }
+  .opt { display: block; width: 100%; text-align: left; border: 0; border-radius: 12px; padding: 11px 14px; margin: 6px 0;
+    background: #2B3170; color: #fff; font: inherit; font-size: 15px; cursor: pointer; }
+  .opt:disabled { cursor: default; }
+  .opt.ok { background: #2E7D4F; } .opt.bad { background: #8C2F39; } .opt.dim { background: #22274F; }
+  #ls-result { font-weight: 700; margin: 10px 0 2px; }
+  #ls-why { margin: 0; line-height: 1.55; }
+  #lesson .foot { display: flex; gap: 6px; align-items: center; padding: 10px 14px 14px; border-top: 1px solid #ffffff14; }
+  #lesson .foot .grow { flex: 1; }
+  #lesson .btn.ghost:disabled { opacity: .35; cursor: default; }
   .fact-top { display: flex; align-items: center; gap: 8px; }
   .chip { border: 0; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
     background: #2B3170; color: #fff; white-space: nowrap; }
   .chip.on { background: var(--gold); color: var(--ink); }
-  #fact.deep { cursor: pointer; }
+  #fact.deep, #fact.learn { cursor: pointer; }
   #fact-more { display: none; color: var(--gold); font-weight: 700; font-size: 14px; margin-top: 6px; }
-  #fact.deep #fact-more { display: block; }
+  #fact.deep #fact-more, #fact.learn #fact-more { display: block; }
   #deep { width: min(94vw, 600px); max-width: none; height: min(88vh, 760px); padding: 0; }
   #deep[open] { display: flex; flex-direction: column; }
   #deep .head { padding: 18px 18px 8px; }
@@ -103,7 +128,8 @@
   <div id="toast"></div>
   <div class="spacer"></div>
   <div id="fact" class="card">
-    <div class="fact-top"><div id="fact-head"></div><button id="deep-chip" class="chip"></button></div>
+    <div class="tiers"><button class="chip" data-tier="0"></button><button class="chip" data-tier="1"></button><button class="chip" data-tier="2"></button></div>
+    <div id="fact-head"></div>
     <div id="fact-body"></div>
     <div id="fact-more"></div>
   </div>
@@ -121,6 +147,24 @@
   <h2 id="intro-title"></h2>
   <p id="intro-body"></p>
   <div class="dlg-btns"><button id="intro-go" class="btn gold"></button></div>
+</dialog>
+
+<dialog id="lesson">
+  <div class="head"><h2 id="ls-head"></h2><div id="ls-sub"></div></div>
+  <div id="ls-scroll">
+    <h3 id="ls-title"></h3>
+    <p id="ls-body"></p>
+    <div id="ls-terms"><h3 id="ls-terms-h"></h3><div id="ls-terms-list"></div></div>
+    <h3 id="ls-quiz-h"></h3>
+    <p id="ls-q"></p>
+    <div id="ls-opts"></div>
+    <p id="ls-result"></p>
+    <p id="ls-why"></p>
+  </div>
+  <div class="foot">
+    <button id="ls-prev" class="btn ghost"></button><button id="ls-next" class="btn ghost"></button>
+    <span class="grow"></span><button id="ls-close" class="btn gold"></button>
+  </div>
 </dialog>
 
 <dialog id="deep">

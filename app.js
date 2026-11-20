@@ -11,10 +11,10 @@ const CONFIG = {
 // 웹에만 있는 문구
 const W = {
   intro: L(
-    "The center of the screen is YOU.\n\n🖱️ Scroll the mouse wheel, pinch on a trackpad or phone, or drag up and down.\n⬆️ Zoom in → hand, cells, atoms, all the way to quarks!\n⬇️ Zoom out → your city, Earth, galaxies, the edge of the universe!\n\nOr just press 🚀 / 🔬 and enjoy the ride.\n🎓 High school or university student? Tap 🎓 Deep on the info card for the real science.",
-    "지금 화면 가운데는 바로 '나'예요.\n\n🖱️ 마우스 휠을 굴리거나, 트랙패드·휴대폰에서 두 손가락으로 벌리고 오므리거나, 위아래로 끌어 보세요.\n⬆️ 확대 → 손, 세포, 원자, 쿼크까지!\n⬇️ 축소 → 우리 도시, 지구, 은하, 우주 끝까지!\n\n🚀 / 🔬 버튼을 누르면 저절로 여행해요.\n🎓 고등학생·대학생은 설명 카드의 🎓 심화를 눌러 이론까지 살펴보세요.",
-    "画面のまん中は「あなた」です。\n\n🖱️ マウスホイール、トラックパッドやスマホの2本指、または上下ドラッグで。\n⬆️ 拡大 → 手、細胞、原子、クォークまで！\n⬇️ 縮小 → 街、地球、銀河、宇宙の果てまで！\n\n🚀 / 🔬 ボタンで自動の旅もできます。\n🎓 高校生・大学生は説明カードの 🎓 くわしく で理論までどうぞ。",
-    "屏幕中间就是“你”。\n\n🖱️ 滚动鼠标滚轮，在触控板或手机上双指缩放，或上下拖动。\n⬆️ 放大 → 手、细胞、原子，一直到夸克！\n⬇️ 缩小 → 城市、地球、星系，一直到宇宙尽头！\n\n按 🚀 / 🔬 可以自动旅行。\n🎓 高中生、大学生可点说明卡上的 🎓 深入，看看背后的理论。"),
+    "The center of the screen is YOU.\n\n🖱️ Scroll the mouse wheel, pinch on a trackpad or phone, or drag up and down.\n⬆️ Zoom in → hand, cells, atoms, all the way to quarks!\n⬇️ Zoom out → your city, Earth, galaxies, the edge of the universe!\n\nOr just press 🚀 / 🔬 and enjoy the ride.\n📗 🎓 Older? Pick 📗 Learn (high school & adults) or 🎓 Deep (university) on the info card.",
+    "지금 화면 가운데는 바로 '나'예요.\n\n🖱️ 마우스 휠을 굴리거나, 트랙패드·휴대폰에서 두 손가락으로 벌리고 오므리거나, 위아래로 끌어 보세요.\n⬆️ 확대 → 손, 세포, 원자, 쿼크까지!\n⬇️ 축소 → 우리 도시, 지구, 은하, 우주 끝까지!\n\n🚀 / 🔬 버튼을 누르면 저절로 여행해요.\n📗 🎓 설명 카드에서 수준을 골라 보세요: 📗 학습(고등학생·일반인), 🎓 심화(대학생).",
+    "画面のまん中は「あなた」です。\n\n🖱️ マウスホイール、トラックパッドやスマホの2本指、または上下ドラッグで。\n⬆️ 拡大 → 手、細胞、原子、クォークまで！\n⬇️ 縮小 → 街、地球、銀河、宇宙の果てまで！\n\n🚀 / 🔬 ボタンで自動の旅もできます。\n📗 🎓 説明カードでレベルを選べます：📗 まなぶ(高校生・一般)、🎓 くわしく(大学生)。",
+    "屏幕中间就是“你”。\n\n🖱️ 滚动鼠标滚轮，在触控板或手机上双指缩放，或上下拖动。\n⬆️ 放大 → 手、细胞、原子，一直到夸克！\n⬇️ 缩小 → 城市、地球、星系，一直到宇宙尽头！\n\n按 🚀 / 🔬 可以自动旅行。\n📗 🎓 可在说明卡上选择程度：📗 学习(高中生、成人)、🎓 深入(大学生)。"),
   getApp: L("📱 Get the app", "📱 앱 받기", "📱 アプリ", "📱 下载应用"),
   appTitle: L("More in the app", "앱에서 더 많이", "アプリではもっと", "应用里还有更多"),
   appBody: L(
@@ -84,7 +84,8 @@ SESSION.place = pickPlace(I18N.lang);
 const st = {
   logW: LEVELS[START_LEVEL].logS + 0.05, time: 0, current: START_LEVEL, settled: true,
   autoDir: 0, touching: false, vel: 0, lastDrag: 0, flyTarget: null, stillTime: 0,
-  deep: store.get("deep") === "1",
+  tier: +(store.get("tier") ?? (store.get("deep") === "1" ? 2 : 0)) || 0,
+  solved: new Set((() => { try { return JSON.parse(store.get("quiz") || "[]"); } catch { return []; } })()),
   discovered: new Set([START_LEVEL]), toast: null, toastTime: 0,
   attract: EMBED, attractWait: 0, attractNext: 1,
 };
@@ -166,7 +167,7 @@ resize();
 const ui = {
   title: $("#title-name"), sub: $("#title-sub"), fact: $("#fact"), factHead: $("#fact-head"), factBody: $("#fact-body"),
   toast: $("#toast"), ladder: $("#ladder"), knob: $("#ladder-knob"), btnSpace: $("#btn-space"), btnQuark: $("#btn-quark"),
-  btnApp: $("#btn-app"), place: $("#place"), lang: $("#lang"), deepChip: $("#deep-chip"),
+  btnApp: $("#btn-app"), place: $("#place"), lang: $("#lang"),
 };
 
 function buildLadder() {
@@ -224,6 +225,7 @@ function applyLang() {
   lastTitle = "";
   if (typeof renderChip === "function") renderChip();
   if ($("#deep").open) openDeep(deepUi.idx);
+  if ($("#lesson").open) openLesson(lsUi.lv, lsUi.i);
 }
 
 $("#btn-space").addEventListener("click", () => toggleAuto(1));
@@ -238,11 +240,19 @@ $("#intro-go").addEventListener("click", () => { $("#intro").close(); store.set(
 // ── 심화 모드 ──────────────────────────────────────────────────────
 function deepFor(lv) { return DEEP.find(d => d.emoji === lv.emoji); }
 const deepUi = { idx: 0 };
+const TIER_LABEL = () => [U.tierKid.s, U.tierLearn.s, U.deepChip.s];
 function renderChip() {
-  ui.deepChip.textContent = U.deepChip.s;
-  ui.deepChip.classList.toggle("on", st.deep);
-  $("#fact-more").textContent = U.readMore.s;
+  document.querySelectorAll(".tiers .chip").forEach(b => {
+    const t = +b.dataset.tier;
+    b.textContent = TIER_LABEL()[t];
+    b.classList.toggle("on", st.tier === t);
+  });
   lastFact = -1;
+}
+function shownTier(lv) {
+  if (st.tier === 2 && deepFor(lv)) return 2;
+  if (st.tier === 1 && (LESSONS[lv.emoji] || []).length) return 1;
+  return 0;
 }
 function openDeep(i) {
   deepUi.idx = i;
@@ -262,11 +272,77 @@ function openDeep(i) {
   $("#deep-scroll").scrollTop = 0;
   if (!$("#deep").open) $("#deep").showModal();
 }
-ui.deepChip.addEventListener("click", e => {
+document.querySelectorAll(".tiers .chip").forEach(b => b.addEventListener("click", e => {
   e.stopPropagation(); userAct();
-  st.deep = !st.deep; store.set("deep", st.deep ? "1" : "0"); renderChip();
+  st.tier = +b.dataset.tier; store.set("tier", String(st.tier)); renderChip();
+}));
+ui.fact.addEventListener("click", () => {
+  const t = shownTier(LEVELS[st.current]);
+  if (t === 2) { userAct(); openDeep(st.current); }
+  else if (t === 1) { userAct(); openLesson(st.current, 0); }
 });
-ui.fact.addEventListener("click", () => { if (st.deep && deepFor(LEVELS[st.current])) { userAct(); openDeep(st.current); } });
+
+// ── 📗 학습 카드 ───────────────────────────────────────────────────
+const lsUi = { lv: 0, i: 0 };
+const Lx = o => o[I18N.lang];
+function lessonCount() { return Object.values(LESSONS).reduce((n, a) => n + a.length, 0); }
+function openLesson(li, ti) {
+  lsUi.lv = li; lsUi.i = ti;
+  const lv = LEVELS[li], topics = LESSONS[lv.emoji] || [], t = topics[ti];
+  if (!t) return;
+  const key = `${lv.emoji}#${ti}`;
+  $("#ls-head").textContent = `📗 ${lv.emoji} ${lv.name}`;
+  $("#ls-sub").textContent = fmt(U.lessonOf.s, ti + 1, topics.length) + "   " + fmt(U.solvedOf.s, st.solved.size, lessonCount());
+  $("#ls-title").textContent = Lx(t.t);
+  $("#ls-body").textContent = Lx(t.b);
+  $("#ls-terms-h").textContent = U.secTerms.s;
+  const tl = $("#ls-terms-list"); tl.innerHTML = "";
+  for (const line of Lx(t.g).split("\n")) {
+    const [w, d] = line.split(" — ");
+    const p = document.createElement("p"), b = document.createElement("b");
+    b.textContent = w; p.appendChild(b);
+    if (d) p.appendChild(document.createTextNode(" — " + d));
+    tl.appendChild(p);
+  }
+  $("#ls-quiz-h").textContent = U.secQuiz.s;
+  $("#ls-q").textContent = Lx(t.q);
+  $("#ls-result").textContent = ""; $("#ls-why").textContent = "";
+  const box = $("#ls-opts"); box.innerHTML = "";
+  const order = [0, 1, 2].sort(() => Math.random() - 0.5);
+  const buttons = [];
+  for (const oi of order) {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = Lx(t.o[oi]);
+    b.addEventListener("click", () => {
+      buttons.forEach(([x, xi]) => { x.disabled = true; x.classList.add(xi === t.a ? "ok" : xi === oi ? "bad" : "dim"); });
+      const ok = oi === t.a;
+      const r = $("#ls-result"); r.textContent = ok ? U.correct.s : U.wrong.s; r.style.color = ok ? "#7CE0A0" : "#FF9A9A";
+      $("#ls-why").textContent = Lx(t.w);
+      if (ok && !st.solved.has(key)) { st.solved.add(key); store.set("quiz", JSON.stringify([...st.solved])); lastFact = -1; }
+      $("#ls-sub").textContent = fmt(U.lessonOf.s, ti + 1, topics.length) + "   " + fmt(U.solvedOf.s, st.solved.size, lessonCount());
+    });
+    buttons.push([b, oi]); box.appendChild(b);
+  }
+  $("#ls-prev").textContent = U.prev.s; $("#ls-prev").disabled = li === 0 && ti === 0;
+  $("#ls-next").textContent = U.next.s; $("#ls-next").disabled = li === LEVELS.length - 1 && ti === topics.length - 1;
+  $("#ls-close").textContent = U.close.s;
+  $("#ls-scroll").scrollTop = 0;
+  if (!$("#lesson").open) $("#lesson").showModal();
+}
+function lessonStep(d) {
+  let l = lsUi.lv, i = lsUi.i + d;
+  for (;;) {
+    const n = (LESSONS[LEVELS[l].emoji] || []).length;
+    if (i >= 0 && i < n) { if (l !== lsUi.lv) flyTo(l); openLesson(l, i); return; }
+    l += d;
+    if (l < 0 || l >= LEVELS.length) return;
+    i = d > 0 ? 0 : (LESSONS[LEVELS[l].emoji] || []).length - 1;
+  }
+}
+$("#ls-prev").addEventListener("click", () => lessonStep(-1));
+$("#ls-next").addEventListener("click", () => lessonStep(1));
+$("#ls-close").addEventListener("click", () => $("#lesson").close());
+$("#lesson").addEventListener("click", e => { if (e.target === $("#lesson")) $("#lesson").close(); });
 $("#deep-show").addEventListener("click", () => { $("#deep-answer").style.display = "block"; $("#deep-show").style.display = "none"; });
 $("#deep-up").addEventListener("click", () => { const i = deepUi.idx - 1; flyTo(i); openDeep(i); });
 $("#deep-down").addEventListener("click", () => { const i = deepUi.idx + 1; flyTo(i); openDeep(i); });
@@ -335,12 +411,24 @@ function updateUi() {
   if (title !== lastTitle) { ui.title.textContent = title; lastTitle = title; }
   if (ui.sub.textContent !== sub) ui.sub.textContent = sub;
   const showFact = st.settled && !st.attract;
-  const key = st.current + (st.deep ? "d" : "");
+  const tier = shownTier(lv);
+  const key = st.current + "t" + tier;
   if (showFact && lastFact !== key) {
-    const d = deepFor(lv), deepOn = st.deep && !!d;
-    ui.factHead.textContent = deepOn ? `${lv.emoji} ${lv.name}  ·  ${powerText(lv.logS)}` : fmt(U.about.s, lv.emoji, lv.name, sizeText(lv.size));
-    ui.factBody.textContent = deepOn ? d.key.s : lv.fact;
-    ui.fact.classList.toggle("deep", deepOn);
+    ui.factHead.textContent = tier ? `${lv.emoji} ${lv.name}  ·  ${powerText(lv.logS)}` : fmt(U.about.s, lv.emoji, lv.name, sizeText(lv.size));
+    if (tier === 1) {
+      const ol = document.createElement("ol");
+      (LESSONS[lv.emoji] || []).forEach((t, i) => {
+        const li = document.createElement("li");
+        const done = st.solved.has(`${lv.emoji}#${i}`);
+        li.textContent = (done ? "✅ " : "") + Lx(t.t);
+        if (done) li.className = "done";
+        ol.appendChild(li);
+      });
+      ui.factBody.replaceChildren(ol);
+    } else ui.factBody.textContent = tier === 2 ? deepFor(lv).key.s : lv.fact;
+    $("#fact-more").textContent = tier === 1 ? U.learnStart.s : U.readMore.s;
+    ui.fact.classList.toggle("deep", tier === 2);
+    ui.fact.classList.toggle("learn", tier === 1);
     lastFact = key;
   }
   ui.fact.classList.toggle("on", showFact);
