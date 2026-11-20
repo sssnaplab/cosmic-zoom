@@ -18,10 +18,10 @@ const W = {
   getApp: L("📱 Get the app", "📱 앱 받기", "📱 アプリ", "📱 下载应用"),
   appTitle: L("More in the app", "앱에서 더 많이", "アプリではもっと", "应用里还有更多"),
   appBody: L(
-    "🎯 Missions: find a hidden size as fast as you can\n📖 Size Book: collect all 22 sizes\n📵 No ads · no sign-up · no internet permission",
-    "🎯 미션: 숨은 크기를 빨리 찾아 별 모으기\n📖 크기 도감: 22단계 모두 모으기\n📵 광고 없음 · 회원가입 없음 · 인터넷 권한 없음",
-    "🎯 ミッション：かくれた大きさを早く見つけて星を集めよう\n📖 サイズ図鑑：22段階ぜんぶ集めよう\n📵 広告なし・登録なし・インターネット権限なし",
-    "🎯 任务：尽快找到隐藏的尺寸，收集星星\n📖 尺寸图鉴：集齐全部22个层级\n📵 无广告 · 无需注册 · 无网络权限"),
+    "🎯 Missions: find a hidden size as fast as you can\n📖 Size Book: collect all 23 sizes\n📵 No ads · no sign-up · no internet permission",
+    "🎯 미션: 숨은 크기를 빨리 찾아 별 모으기\n📖 크기 도감: 23단계 모두 모으기\n📵 광고 없음 · 회원가입 없음 · 인터넷 권한 없음",
+    "🎯 ミッション：かくれた大きさを早く見つけて星を集めよう\n📖 サイズ図鑑：23段階ぜんぶ集めよう\n📵 広告なし・登録なし・インターネット権限なし",
+    "🎯 任务：尽快找到隐藏的尺寸，收集星星\n📖 尺寸图鉴：集齐全部23个层级\n📵 无广告 · 无需注册 · 无网络权限"),
   soon: L("Coming to Google Play in December 2026", "Google Play 2026년 12월 출시 예정", "Google Play で2026年12月公開予定", "将于2026年12月在 Google Play 上线"),
   onPlay: L("Get it on Google Play", "Google Play 에서 받기", "Google Play で入手", "在 Google Play 获取"),
   about: L("About the app", "앱 소개", "アプリについて", "了解应用"),
@@ -99,7 +99,7 @@ function userAct() {
 function touchStart() { userAct(); st.touching = true; st.flyTarget = null; st.autoDir = 0; st.vel = 0; }
 function drag(delta, now) {
   const before = st.logW;
-  st.logW = clamp(st.logW + delta, MIN_LOG, MAX_LOG);
+  st.logW = clamp(st.logW + delta * desertBoost(st.logW), MIN_LOG, MAX_LOG);
   const dt = clamp(now - st.lastDrag, 1, 100) / 1000;
   if (st.lastDrag !== 0) st.vel = st.vel * 0.6 + (st.logW - before) / dt * 0.4;
   st.lastDrag = now;
@@ -110,7 +110,7 @@ function touchEnd(now) {
   st.vel = clamp(st.vel, -12, 12);
   st.lastDrag = 0;
 }
-function nudge(d) { userAct(); st.flyTarget = null; st.autoDir = 0; st.vel = 0; st.logW = clamp(st.logW + d, MIN_LOG, MAX_LOG); st.stillTime = 0; }
+function nudge(d) { userAct(); st.flyTarget = null; st.autoDir = 0; st.vel = 0; st.logW = clamp(st.logW + d * desertBoost(st.logW), MIN_LOG, MAX_LOG); st.stillTime = 0; }
 function flyTo(i) { userAct(); st.flyTarget = LEVELS[i].logS; st.autoDir = 0; st.vel = 0; }
 function setFromLadder(f) { userAct(); st.flyTarget = null; st.autoDir = 0; st.vel = 0; st.logW = logFromFrac(f); }
 function toggleAuto(dir) { userAct(); st.autoDir = st.autoDir === dir ? 0 : dir; st.flyTarget = null; st.vel = 0; }
@@ -126,7 +126,7 @@ function step(dt) {
         st.logW += Math.abs(sv) > Math.abs(d) ? d : sv;
       }
     } else if (st.autoDir !== 0) {
-      st.logW += st.autoDir * 1.35 * dt;
+      st.logW += st.autoDir * 1.35 * desertBoost(st.logW) * dt;
       if (st.logW >= MAX_LOG - 0.3 || st.logW <= MIN_LOG + 0.3) st.autoDir = 0;
     } else if (Math.abs(st.vel) > 0.02) {
       st.logW += st.vel * dt; st.vel *= Math.exp(-3.2 * dt);

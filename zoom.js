@@ -1098,6 +1098,56 @@ function drawQuark(c, b, a) {
   c.label(S.quarkUnknown.s, 0, 0, q * c.band(-18.7, -17.2), WHITE, 12, c.dp(84));
 }
 
+// ── 22. 끈(가설) ───────────────────────────────────────────────────
+const PLANCK = 1.6e-35;
+const StringData = (() => {
+  const r = new Rnd(161), foam = [];
+  for (let i = 0; i < 220; i++) foam.push((r.next() - 0.5) * 3 * PLANCK, (r.next() - 0.5) * 3 * PLANCK, 0.01 + r.next() * 0.03, r.next() * 6.28);
+  return {
+    foam,
+    loops: [[0, 0, 0.16, 3, 0, 2.2], [-0.30, -0.22, 0.07, 2, 1, 3.1], [0.31, -0.18, 0.09, 5, 2, 2.6], [-0.26, 0.28, 0.08, 4, 3, 2.9], [0.27, 0.30, 0.06, 6, 1, 3.4]],
+    palette: [C(0xFFFFD34D), C(0xFF7FD8FF), C(0xFFFF8FC8), C(0xFF9BFF9B)],
+  };
+})();
+/** 쿼크와 끈 사이의 빈 구간에서는 확대·자동 여행을 빠르게 한다 */
+function desertBoost(logW) { return 1 + 3 * ramp(-logW, 19.3, 20.3) * (1 - ramp(-logW, 32.0, 33.0)); }
+
+function drawStrings(c, b, a) {
+  c.fill(C(0xFF06020F), a);
+  const desert = a * ramp(-c.logW, 19.6, 20.4) * (1 - ramp(-c.logW, 31.6, 32.4));
+  if (desert > 0.01) {
+    const n = Math.max(1, Math.floor(-18.5 - c.logW));
+    c.label(S.desert.s, 0, 0, desert, C(0xFFD8CCFF), 14, -c.dp(16), true);
+    c.label(fmt(S.desertSub.s, n), 0, 0, desert, C(0xFFB0A4E0), 12, c.dp(12));
+    for (let i = 0; i < 40; i++) {
+      const ph = (c.t * 0.3 + hash(i, 0, 171)) % 1;
+      const x = (hash(i, 1, 172) - 0.5) * 2 * c.hwX * (0.3 + ph), y = (hash(i, 2, 173) - 0.5) * 2 * c.hwY * (0.3 + ph);
+      c.circle(x, y, 0, C(0xFF8F80D0), desert * 0.5 * Math.sin(ph * Math.PI), c.dp(1.5));
+    }
+  }
+  if (b <= 0.003) return;
+  const S0 = PLANCK, f = StringData.foam, foamC = C(0xFF5A46A8);
+  for (let i = 0; i < f.length; i += 4) {
+    const al = 0.5 + 0.5 * Math.sin(c.t * 1.7 + f[i + 3]);
+    c.glow(f[i], f[i + 1], Math.max(c.dp(3), c.px(f[i + 2] * S0)), foamC, b * al * 0.5);
+  }
+  StringData.loops.forEach((L0, k) => {
+    const cx0 = L0[0] * S0, cy0 = L0[1] * S0, r0 = L0[2] * S0, modes = L0[3], col = StringData.palette[L0[4]], sp = L0[5];
+    const pts = [];
+    for (let j = 0; j <= 72; j++) {
+      const th = 2 * Math.PI * j / 72;
+      const rr = r0 * (1 + 0.22 * Math.sin(modes * th + c.t * sp + k) * Math.cos(c.t * sp * 0.7));
+      pts.push(cx0 + rr * Math.cos(th), cy0 + rr * Math.sin(th));
+    }
+    c.polyline(pts, withA(col, 0.35), b, Math.max(c.dp(7), c.px(r0 * 0.12)));
+    c.polyline(pts, col, b, Math.max(c.dp(2.2), c.px(r0 * 0.035)));
+  });
+  const lb = b * c.band(-35.6, -34.2);
+  c.label(S.hypothesis.s, 0, -0.44 * S0, lb, C(0xFFFFC870), 13, -c.dp(10), true);
+  c.label(S.planckLength.s, 0, -0.44 * S0, lb, C(0xFFD8CCFF), 12, c.dp(12));
+  c.label(S.oneString.s, 0, 0, lb, WHITE, 12, Math.max(c.dp(30), c.px(0.16 * S0 * 1.25) + c.dp(14)), true);
+}
+
 // ── 우주 한 장면 그리기 ────────────────────────────────────────────
 function levelAlphas(logW) {
   const n = LEVELS.length;
@@ -1171,7 +1221,10 @@ function sizeText(m) {
   if (m >= 1e-9) return fmtNum(m * 1e9) + " nm";
   if (m >= 1e-12) return fmtNum(m * 1e12) + " pm";
   if (m >= 1e-15) return fmtNum(m * 1e15) + " fm";
-  return fmtNum(m * 1e18) + " am";
+  if (m >= 1e-18) return fmtNum(m * 1e18) + " am";
+  let e = Math.floor(Math.log10(m)), mant = m / Math.pow(10, e);
+  if (mant >= 9.95) { mant /= 10; e += 1; }
+  return fmtNum(mant) + " × 10" + (e < 0 ? "⁻" : "") + String(Math.abs(e)).split("").map(d => SUP[+d]).join("") + " m";
 }
 const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
 function powerText(logW) {
