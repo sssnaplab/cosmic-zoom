@@ -239,6 +239,53 @@ class Ctx {
   }
 }
 
+// ── 맨 위. 다중우주(가설) ──────────────────────────────────────────
+const OBS_R = 4.4e26;
+const MultiData = (() => {
+  const OUR_R = 4.2e27, r = new Rnd(281);
+  const bubbles = [[1.10e28, -0.62e28, 3.0e27, 0], [-1.05e28, -0.80e28, 2.4e27, 1], [-1.20e28, 0.70e28, 3.4e27, 2], [0.95e28, 0.85e28, 2.0e27, 3],
+    [0.05e28, -1.45e28, 1.6e27, 1], [0.10e28, 1.40e28, 2.2e27, 0], [1.60e28, 0.15e28, 1.4e27, 2], [-1.65e28, -0.05e28, 1.5e27, 3]];
+  const w = [];
+  for (let f = 0; f < 90; f++) {
+    let x, y;
+    do { x = (r.next() * 2 - 1) * OBS_R; y = (r.next() * 2 - 1) * OBS_R; } while (Math.hypot(x, y) > OBS_R * 0.95 || Math.hypot(x, y) < 6e25);
+    let an = r.next() * 2 * Math.PI;
+    for (let k = 0; k < 16; k++) {
+      for (let m = 0; m < 2; m++) w.push(x + r.gauss() * 5e24, y + r.gauss() * 5e24);
+      an += r.gauss() * 0.6; x += Math.cos(an) * 1.4e25; y += Math.sin(an) * 1.4e25;
+    }
+  }
+  const ours = [];
+  for (let i = 0; i < 1400; i++) { const rr = OUR_R * 0.97 * Math.sqrt(r.next()), an = r.next() * 2 * Math.PI; ours.push(rr * Math.cos(an), rr * Math.sin(an)); }
+  const others = bubbles.map(bb => { const o = []; for (let i = 0; i < 70; i++) { const rr = bb[2] * 0.9 * Math.sqrt(r.next()), an = r.next() * 2 * Math.PI; o.push(bb[0] + rr * Math.cos(an), bb[1] + rr * Math.sin(an)); } return o; });
+  return { OUR_R, bubbles, obsWeb: w, ours, others, tints: [C(0xFFFF9EC8), C(0xFF8FE3FF), C(0xFFB9A8FF), C(0xFF9BFFC0)] };
+})();
+
+function drawMultiverse(c, b) {
+  if (b <= 0.003) return;
+  const d = MultiData, x0 = c.sx(0), y0 = c.sy(0), ro = c.px(d.OUR_R);
+  if (ro > 2 && ro < 1e6) c.radial(x0, y0, ro, [[0, C(0x223A3A8A)], [0.85, C(0x2A5A4AB0)], [0.97, C(0x55B9A8FF)], [1, C(0x00000000)]], b);
+  c.dots(d.obsWeb, C(0xFFD9D2FF), c.dp(1.5), b * c.band(26.5, 28.3) * 0.8);
+  c.dots(d.ours, C(0xFFCFC6FF), c.dp(1.3), b * ramp(c.logW, 27.2, 27.8) * 0.7);
+  const far = b * ramp(c.logW, 27.9, 28.4);
+  d.bubbles.forEach((bb, k) => {
+    const col = d.tints[bb[3]], rp = c.px(bb[2]);
+    if (far > 0.01 && rp > 1 && c.visible(bb[0], bb[1], rp)) {
+      c.radial(c.sx(bb[0]), c.sy(bb[1]), rp, [[0, withA(col, 0.10)], [0.8, withA(col, 0.18)], [0.97, withA(col, 0.55)], [1, C(0x00000000)]], far);
+    }
+    c.dots(d.others[k], col, c.dp(1.2), far * 0.6);
+  });
+  const edge = b * c.band(26.9, 28.6);
+  c.ring(0, 0, OBS_R, C(0xFFFFD34D), edge, c.dp(1.8), true);
+  c.circle(0, 0, 0, C(0xFFFFD34D), edge * ramp(c.logW, 27.9, 28.3), c.dp(3));
+  c.label(S.obsEdge.s, 0, -OBS_R, edge, C(0xFFFFE6A0), 12, -c.dp(14), true);
+  c.label(S.beyondMaybe.s, 0, d.OUR_R * 0.62, b * c.band(27.6, 29.0), C(0xFFD8D0FF), 12);
+  const top = b * c.band(28.0, 29.4), b1 = d.bubbles[1];
+  c.label(S.otherBubbles.s, b1[0], b1[1], top, C(0xFFBFEFFF), 12, c.px(b1[2]) + c.dp(14), true);
+  c.label(S.hypothesis.s, 0, -c.hwY * 0.58, top, C(0xFFFFC870), 13, 0, true);
+  c.label(S.notToScale.s, 0, -c.hwY * 0.58, top, C(0xFFD8CCFF), 11, c.dp(20));
+}
+
 // ── 0. 우주 거대 구조 ─────────────────────────────────────────────
 const WebData = (() => {
   const S = 1e26, r = new Rnd(11), n = 64;
@@ -1200,12 +1247,14 @@ function fmtNum(v) {
 }
 function bigNum(v) {
   if (I18N.lang === "en") {
+    if (v >= 1e12) return fmtNum(v / 1e12) + " trillion";
     if (v >= 1e9) return fmtNum(v / 1e9) + " billion";
     if (v >= 1e6) return fmtNum(v / 1e6) + " million";
     if (v >= 1e4) return Math.round(v).toLocaleString("en-US");
     return fmtNum(v);
   }
   const [man, eok] = I18N.lang === "ko" ? ["만", "억"] : I18N.lang === "ja" ? ["万", "億"] : ["万", "亿"];
+  if (v >= 1e12) return fmtNum(v / 1e12) + ({ ko: "조", ja: "兆" }[I18N.lang] || "万亿");
   if (v >= 1e8) return fmtNum(v / 1e8) + eok;
   if (v >= 1e4) return fmtNum(v / 1e4) + man;
   return fmtNum(v);
