@@ -34,6 +34,7 @@
   #fact.on { opacity: 1; transform: none; pointer-events: auto; }
   #fact-head { color: var(--gold); font-weight: 700; font-size: 15px; margin-top: 8px; }
   .tiers { display: flex; gap: 6px; flex-wrap: wrap; }
+  .branches { margin-top: 6px; }
   #fact-body ol { margin: 2px 0 0; padding-left: 20px; }
   #fact-body li.done { list-style: none; margin-left: -20px; }
   #lesson { width: min(94vw, 600px); max-width: none; height: min(88vh, 760px); padding: 0; }
@@ -129,6 +130,7 @@
   <div class="spacer"></div>
   <div id="fact" class="card">
     <div class="tiers"><button class="chip" data-tier="0"></button><button class="chip" data-tier="1"></button><button class="chip" data-tier="2"></button></div>
+    <div class="tiers branches" id="branches"></div>
     <div id="fact-head"></div>
     <div id="fact-body"></div>
     <div id="fact-more"></div>

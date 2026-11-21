@@ -29,6 +29,12 @@ const W = {
   lang: L("Language", "언어", "言語", "语言"),
 };
 
+// '나'에서 들어갈 신체 갈래. 위쪽(우주~나)과 아래쪽(원자~끈)은 모든 갈래가 같다
+const BRANCHES = [
+  { id: "hand", emoji: "✋", name: L("Hand", "손", "手", "手"), levels: TOP_LEVELS.concat(HAND_LEVELS, BOTTOM_LEVELS), mid: HAND_LEVELS },
+  { id: "eye", emoji: "👁️", name: L("Eye", "눈", "目", "眼睛"), levels: TOP_LEVELS.concat(EYE_LEVELS, BOTTOM_LEVELS), mid: EYE_LEVELS },
+  { id: "nerve", emoji: "⚡", name: L("Optic nerve", "시신경", "視神経", "视神经"), levels: TOP_LEVELS.concat(NERVE_LEVELS, BOTTOM_LEVELS), mid: NERVE_LEVELS },
+];
 const START_LEVEL = LEVELS.findIndex(l => l.emoji === "🧒");
 const MAX_LOG = LEVELS[0].logS + 0.6;
 const MIN_LOG = LEVELS[LEVELS.length - 1].logS - 0.5;
@@ -86,7 +92,7 @@ const st = {
   autoDir: 0, touching: false, vel: 0, lastDrag: 0, flyTarget: null, stillTime: 0,
   tier: +(store.get("tier") ?? (store.get("deep") === "1" ? 2 : 0)) || 0,
   solved: new Set((() => { try { return JSON.parse(store.get("quiz") || "[]"); } catch { return []; } })()),
-  discovered: new Set([START_LEVEL]), toast: null, toastTime: 0,
+  discovered: new Set(["🧒"]), toast: null, toastTime: 0,
   attract: EMBED, attractWait: 0, attractNext: 1,
 };
 {
@@ -143,8 +149,8 @@ function step(dt) {
   st.settled = st.stillTime > 0.35;
   st.current = currentLevel(st.logW);
   const near = Math.abs(st.logW - LEVELS[st.current].logS) < 0.6;
-  if (st.settled && near && !st.discovered.has(st.current)) {
-    st.discovered.add(st.current);
+  if (st.settled && near && !st.discovered.has(LEVELS[st.current].emoji)) {
+    st.discovered.add(LEVELS[st.current].emoji);
     if (!st.attract) { st.toast = st.current; st.toastTime = 0; }
   }
   if (st.toast != null) { st.toastTime += dt; if (st.toastTime > 2.6) st.toast = null; }
@@ -226,6 +232,7 @@ function applyLang() {
   if (typeof renderChip === "function") renderChip();
   if ($("#deep").open) openDeep(deepUi.idx);
   if ($("#lesson").open) openLesson(lsUi.lv, lsUi.i);
+  if (typeof renderBranches === "function") renderBranches();
 }
 
 $("#btn-space").addEventListener("click", () => toggleAuto(1));
@@ -241,8 +248,26 @@ $("#intro-go").addEventListener("click", () => { $("#intro").close(); store.set(
 function deepFor(lv) { return DEEP.find(d => d.emoji === lv.emoji); }
 const deepUi = { idx: 0 };
 const TIER_LABEL = () => [U.tierKid.s, U.tierLearn.s, U.deepChip.s];
+function setBranch(id, save = true) {
+  const br = BRANCHES.find(b => b.id === id) || BRANCHES[0];
+  BODY.branch = br.id; LEVELS = br.levels;
+  if (save) store.set("branch", br.id);
+  st.current = currentLevel(st.logW);
+  buildLadder(); renderBranches(); lastFact = -1; lastTitle = "";
+}
+function renderBranches() {
+  const box = $("#branches");
+  box.innerHTML = "";
+  for (const br of BRANCHES) {
+    const b = document.createElement("button");
+    b.className = "chip" + (br.id === BODY.branch ? " on" : "");
+    b.textContent = `${br.emoji} ${br.name.s}`;
+    b.addEventListener("click", e => { e.stopPropagation(); userAct(); setBranch(br.id); });
+    box.appendChild(b);
+  }
+}
 function renderChip() {
-  document.querySelectorAll(".tiers .chip").forEach(b => {
+  document.querySelectorAll(".tiers .chip[data-tier]").forEach(b => {
     const t = +b.dataset.tier;
     b.textContent = TIER_LABEL()[t];
     b.classList.toggle("on", st.tier === t);
@@ -272,7 +297,7 @@ function openDeep(i) {
   $("#deep-scroll").scrollTop = 0;
   if (!$("#deep").open) $("#deep").showModal();
 }
-document.querySelectorAll(".tiers .chip").forEach(b => b.addEventListener("click", e => {
+document.querySelectorAll(".tiers .chip[data-tier]").forEach(b => b.addEventListener("click", e => {
   e.stopPropagation(); userAct();
   st.tier = +b.dataset.tier; store.set("tier", String(st.tier)); renderChip();
 }));
@@ -427,6 +452,8 @@ function updateUi() {
       ui.factBody.replaceChildren(ol);
     } else ui.factBody.textContent = tier === 2 ? deepFor(lv).key.s : lv.fact;
     $("#fact-more").textContent = tier === 1 ? U.learnStart.s : U.readMore.s;
+    const br = BRANCHES.find(b => b.id === BODY.branch);
+    $("#branches").style.display = lv.emoji === "🧒" || br.mid.includes(lv) ? "" : "none";
     ui.fact.classList.toggle("deep", tier === 2);
     ui.fact.classList.toggle("learn", tier === 1);
     lastFact = key;
@@ -459,6 +486,10 @@ function frame(now) {
 if (EMBED) {
   document.body.classList.add("embed", "attract");
   canvas.addEventListener("pointerdown", () => document.body.classList.remove("attract"), { once: true });
+}
+{
+  const q = params.get("branch") || store.get("branch");
+  if (q && q !== "hand") setBranch(q, !!params.get("branch"));
 }
 applyLang();
 if (!EMBED && !store.get("intro") && !params.has("logW")) $("#intro").showModal();

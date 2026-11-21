@@ -88,11 +88,14 @@ const FONT = 'system-ui, -apple-system, "Apple SD Gothic Neo", "Hiragino Sans", 
 
 // ── 한 프레임 문맥 ─────────────────────────────────────────────────
 class Ctx {
-  constructor(g, w, h, k, t, logW, density) {
+  constructor(g, w, h, k, t, logW, density, cx = w / 2, cy = h / 2) {
     this.g = g; this.w = w; this.h = h; this.k = k; this.t = t; this.logW = logW; this.density = density;
-    this.cx = w / 2; this.cy = h / 2;
-    this.hwX = this.cx / k; this.hwY = this.cy / k;
+    this.cx = cx; this.cy = cy;
+    // 원점에서 화면 가장자리까지의 가장 먼 거리(미터)
+    this.hwX = Math.max(cx, w - cx) / k; this.hwY = Math.max(cy, h - cy) / k;
   }
+  /** 세계를 (dx, dy) 미터 옮겨 그리는 문맥 */
+  shifted(dx, dy) { return new Ctx(this.g, this.w, this.h, this.k, this.t, this.logW, this.density, this.cx + dx * this.k, this.cy + dy * this.k); }
   sx(m) { return this.cx + m * this.k; }
   sy(m) { return this.cy + m * this.k; }
   px(m) { return m * this.k; }
@@ -789,7 +792,14 @@ function blanketChecker(c, x0, y0, x1, y1, alpha) {
   });
 }
 
+/** 고른 갈래의 몸 부위(손·눈)가 화면 가운데에 오도록 아이 그림을 옮겨 그린다 */
+function branchFocus(id) { return id === "eye" ? [-0.338, -0.45] : id === "nerve" ? [-0.33, -0.455] : [0, 0]; }
+const BODY = { branch: "hand" };
 function drawKid(c, b, a) {
+  const f = branchFocus(BODY.branch);
+  drawKidAt(c.shifted(-f[0], -f[1]), b, a);
+}
+function drawKidAt(c, b, a) {
   if (a > 0.003) {
     c.fill(GRASS, a);
     const bw = Math.max(1, c.px(0.004)), d0 = C(0xFF4E9A3A), d1 = C(0xFF8CCB62);
@@ -1193,6 +1203,317 @@ function drawStrings(c, b, a) {
   c.label(S.hypothesis.s, 0, -0.44 * S0, lb, C(0xFFFFC870), 13, -c.dp(10), true);
   c.label(S.planckLength.s, 0, -0.44 * S0, lb, C(0xFFD8CCFF), 12, c.dp(12));
   c.label(S.oneString.s, 0, 0, lb, WHITE, 12, Math.max(c.dp(30), c.px(0.16 * S0 * 1.25) + c.dp(14)), true);
+}
+
+// ── 신체 갈래(눈·시신경) 그림: 앱 BodyScenes.kt 를 옮긴 것 ─────────────
+const EYE_W = 1.5e-2, EYE_H = 6.6e-3, IRIS_R = 6.0e-3, PUPIL_R = 2.0e-3;
+const EYE_ALMOND = (() => {
+  const n = 64, out = [];
+  for (let i = 0; i < n; i++) {
+    const th = 2 * Math.PI * i / n, s = Math.sin(th);
+    out.push(EYE_W * Math.cos(th), (s < 0 ? EYE_H : EYE_H * 0.8) * s * (1 - 0.12 * Math.cos(th)));
+  }
+  return out;
+})();
+const EyeData = (() => {
+  const r = new Rnd(310), fibres = [];
+  for (let i = 0; i < 140; i++) fibres.push(r.next() * 2 * Math.PI, 0.36 + r.next() * 0.12, 0.75 + r.next() * 0.22, r.next());
+  const veins = [];
+  for (let v = 0; v < 9; v++) {
+    const side = v % 2 === 0 ? 1 : -1;
+    let x = side * EYE_W * (0.92 - r.next() * 0.1), y = (r.next() - 0.5) * EYE_H * 0.8;
+    let an = side > 0 ? Math.PI + (r.next() - 0.5) * 0.8 : (r.next() - 0.5) * 0.8;
+    const pts = [];
+    for (let k = 0; k < 10; k++) { pts.push(x, y); an += r.gauss() * 0.35; x += Math.cos(an) * 6e-4; y += Math.sin(an) * 6e-4; }
+    veins.push(pts);
+  }
+  return { fibres, veins };
+})();
+
+function drawEye(c, b, a) {
+  if (a > 0.003) c.fill(SKIN, a);
+  if (b <= 0.003) return;
+  const g = c.g, x0 = c.sx(0), y0 = c.sy(0);
+  c.glow(0, 0, c.px(EYE_W * 1.25), C(0x55A0603C), b);
+  g.save(); c.pathOf(EYE_ALMOND, true); g.clip();
+  const rx = c.px(EYE_W);
+  c.radial(x0, y0, rx * 1.4, [[0, C(0xFFFBF7F2)], [0.4, C(0xFFF1E6DF)], [0.7, C(0xFFD9B8AC)], [1, C(0xFFC79A8C)]], b);
+  for (const v of EyeData.veins) c.polyline(v, C(0xFFC0392B), b * 0.35, Math.max(1, c.px(6e-5)));
+  const ri = c.px(IRIS_R);
+  c.radial(x0, y0, ri, [[0, C(0xFF2A1C10)], [0.33, C(0xFF4E3518)], [0.45, C(0xFF8A6A30)], [0.62, C(0xFF6E7A3E)], [0.86, C(0xFF4A5A34)], [0.97, C(0xFF1E1A12)], [1, C(0xFF14110C)]], b);
+  if (ri > 25) {
+    const f = EyeData.fibres, dark = C(0xFF3A2A16), light = C(0xFFD8B870);
+    for (let i = 0; i < f.length; i += 4) {
+      const an = f[i];
+      c.line(Math.cos(an) * IRIS_R * f[i + 1], Math.sin(an) * IRIS_R * f[i + 1], Math.cos(an) * IRIS_R * f[i + 2], Math.sin(an) * IRIS_R * f[i + 2], lerpC(dark, light, f[i + 3]), b * 0.35, Math.max(1, c.px(4e-5)));
+    }
+    const cr = [];
+    for (let j = 0; j <= 72; j++) { const th = 2 * Math.PI * j / 72, rr = IRIS_R * (0.5 + 0.03 * Math.sin(th * 11)); cr.push(rr * Math.cos(th), rr * Math.sin(th)); }
+    c.polyline(cr, C(0xFFB89650), b * 0.5, Math.max(1, c.px(1.2e-4)));
+  }
+  c.radial(x0, y0, c.px(PUPIL_R), [[0, C(0xFF000000)], [0.85, C(0xFF050505)], [1, C(0xFF1A120A)]], b);
+  c.glow(-1.7e-3, -1.9e-3, Math.max(c.dp(3), c.px(1.1e-3)), C(0xCCFFFFFF), b);
+  c.circle(-1.7e-3, -1.9e-3, 3e-4, WHITE, b * 0.9, c.dp(1.2));
+  const gr = g.createLinearGradient(0, c.sy(-EYE_H), 0, c.sy(-EYE_H * 0.35));
+  gr.addColorStop(0, C(0x66301A10).s); gr.addColorStop(1, C(0x00301A10).s);
+  c.alpha(b); g.fillStyle = gr; g.fillRect(0, c.sy(-EYE_H), c.w, c.sy(-EYE_H * 0.35) - c.sy(-EYE_H));
+  g.restore();
+  const half = EYE_ALMOND.length / 4;
+  const upper = EYE_ALMOND.slice(half * 2).concat(EYE_ALMOND.slice(0, 2));
+  c.polyline(upper, C(0xFF5A3524), b, Math.max(1.5, c.px(2.5e-4)));
+  c.polyline(EYE_ALMOND.slice(0, half * 2 + 2), C(0xFFB0705A), b * 0.7, Math.max(1, c.px(1.2e-4)));
+  for (let j = 2; j < upper.length / 2 - 2; j++) {
+    const x = upper[2 * j], y = upper[2 * j + 1], ang = -Math.PI / 2 + (x / EYE_W) * 0.9, len = 2.2e-3 * (1 - Math.abs(x / EYE_W) * 0.6);
+    c.line(x, y, x + Math.cos(ang) * len, y + Math.sin(ang) * len - 3e-4, C(0xFF241510), b * 0.85, Math.max(1, c.px(9e-5)));
+  }
+  const crease = [];
+  for (let i = 0; i < 20; i++) { const u = (i - 9.5) / 9.5; crease.push(u * EYE_W * 0.85, -EYE_H * 1.45 * (1 - u * u) - 1e-3); }
+  c.polyline(crease, C(0xFFB8806A), b * 0.6, Math.max(1, c.px(1.5e-4)));
+  const lb = b * c.band(-1.9, -0.9);
+  c.label(S.iris.s, IRIS_R * 0.72, IRIS_R * 0.55, lb, WHITE, 12, 0, true);
+  c.label(S.pupil.s, 0, 0, lb, WHITE, 12, 0, true);
+  c.label(S.cornea.s, -1.7e-3, -1.9e-3, lb, C(0xFFE0F0FF), 11, -c.dp(14));
+  c.label(S.sclera.s, -EYE_W * 0.72, 0, lb, C(0xFF7A4A3A), 11);
+}
+
+const DISC_X = 3.9e-3, DISC_Y = -0.3e-3, DISC_R = 0.85e-3;
+const RetinaData = (() => {
+  const r = new Rnd(420), vessels = [];
+  function walk(x0, y0, an0, w, steps, artery, depth) {
+    const pts = []; let x = x0, y = y0, an = an0;
+    for (let i = 0; i < steps; i++) {
+      pts.push(x, y);
+      const d = Math.hypot(x, y);
+      if (d < 2.6e-3) { const away = Math.atan2(y, x); const diff = ((away - an + 3 * Math.PI) % (2 * Math.PI)) - Math.PI; an += diff * 0.25; }
+      an += r.gauss() * 0.12;
+      x += Math.cos(an) * 2.2e-4; y += Math.sin(an) * 2.2e-4;
+      if (depth < 3 && i > 4 && i % 7 === 3 && r.next() < 0.8) {
+        const side = r.next() < 0.5 ? 1 : -1;
+        walk(x, y, an + side * (0.6 + r.next() * 0.5), w * 0.62, Math.floor((steps - i) * 2 / 3) + 6, artery, depth + 1);
+      }
+    }
+    vessels.push({ pts, w, artery });
+  }
+  walk(DISC_X, DISC_Y - 2e-4, -2.4, 1.5e-4, 42, true, 0);
+  walk(DISC_X - 1e-4, DISC_Y - 4e-4, -2.2, 1.8e-4, 42, false, 0);
+  walk(DISC_X, DISC_Y + 2e-4, 2.4, 1.5e-4, 42, true, 0);
+  walk(DISC_X - 1e-4, DISC_Y + 4e-4, 2.2, 1.8e-4, 42, false, 0);
+  walk(DISC_X + 2e-4, DISC_Y - 1e-4, -0.6, 1.1e-4, 20, true, 1);
+  walk(DISC_X + 2e-4, DISC_Y + 2e-4, 0.5, 1.2e-4, 20, false, 1);
+  for (let k = 0; k < 10; k++) { const an = r.next() * 2 * Math.PI; walk(Math.cos(an) * 2.9e-3, Math.sin(an) * 2.9e-3, an + Math.PI + (r.next() - 0.5) * 0.6, 4e-5, 6, k % 2 === 0, 3); }
+  vessels.sort((p, q) => q.w - p.w);
+  return { vessels };
+})();
+
+function drawRetina(c, b, a) {
+  const vis = Math.max(a, b);
+  if (vis <= 0.003) return;
+  const g = c.g, x0 = c.sx(0), y0 = c.sy(0);
+  if (a < 0.995) {
+    const r = c.px(PUPIL_R) + (Math.max(c.w, c.h) * 1.5 - c.px(PUPIL_R)) * a;
+    if (r < 0.5) return;
+    g.save(); g.beginPath(); g.arc(x0, y0, r, 0, 2 * Math.PI); g.clip();
+    retinaBody(c, b, vis, x0, y0);
+    g.restore();
+  } else retinaBody(c, b, vis, x0, y0);
+}
+function retinaBody(c, b, vis, x0, y0) {
+  const g = c.g, R = Math.max(c.px(9e-3), 1);
+  const gr = g.createRadialGradient(x0, y0, 0, x0, y0, R);
+  [[0, 0xFF7A2410], [0.06, 0xFF9A3414], [0.25, 0xFFB8471E], [0.7, 0xFFD06A2E], [1, 0xFFB04A20]].forEach(([p, col]) => gr.addColorStop(p, C(col).s));
+  c.alpha(vis); g.fillStyle = gr; g.fillRect(0, 0, c.w, c.h);
+  if (b <= 0.003) return;
+  c.glow(0, 0, c.px(1.8e-3), C(0x995A1A08), b);
+  c.glow(0, 0, Math.max(c.dp(5), c.px(1.5e-4)), C(0xCCFFE6B0), b * 0.8);
+  const art = C(0xFFE0502E), vein = C(0xFF8A1C10), refl = C(0x66FFD0B0);
+  for (const v of RetinaData.vessels) {
+    c.polyline(v.pts, v.artery ? art : vein, b, Math.max(1, c.px(v.w)));
+    if (v.artery && c.px(v.w) > 4) c.polyline(v.pts, refl, b, c.px(v.w) * 0.25);
+  }
+  const dr = c.px(DISC_R);
+  if (dr > 0.5) c.radial(c.sx(DISC_X), c.sy(DISC_Y), dr, [[0, C(0xFFFFF4DC)], [0.45, C(0xFFFBD9A8)], [0.85, C(0xFFEBA77A)], [1, C(0x00E08050)]], b);
+  const lb = b * c.band(-2.5, -1.5);
+  c.label(S.opticDisc.s, DISC_X, DISC_Y, lb, C(0xFF3A1A08), 12, dr + c.dp(14), true);
+  c.label(S.macula.s, 0, 0, lb, C(0xFFFFE6C0), 12, -c.px(1.8e-3) * 0.6, true);
+  c.label(S.fovea.s, 0, 0, b * c.band(-3.2, -2.4), C(0xFFFFE6C0), 12, c.dp(22));
+  c.label(S.vessels.s, -3.2e-3, -2.6e-3, lb, WHITE, 11);
+}
+
+const CONE_S = 3.2e-6;
+function drawPhotoreceptors(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF120806), a);
+  if (b <= 0.003) return;
+  const rowH = CONE_S * 0.866, nx = 2 * c.hwX / CONE_S + 3, ny = 2 * c.hwY / rowH + 3;
+  const far = 1 - ramp(nx * ny, 3500, 6000);
+  const Lc = C(0xFFFF5A48), Mc = C(0xFF52E06A), Sc = C(0xFF5C7CFF), rod = C(0xFFD8D2C8);
+  if (far < 0.99) {
+    const cell = Math.max(CONE_S * 2, Math.sqrt(4 * c.hwX * c.hwY / 3500));
+    const sp = b * (1 - far) * ramp(-c.logW, 2.4, 3.2);
+    if (sp > 0.01) c.grid(cell, 4500, (i, j, x, y) => {
+      const h = hash(i, j, 504);
+      c.circle(x + cell * hash(i, j, 505), y + cell * hash(i, j, 506), 0, h < 0.07 ? Sc : h < 0.37 ? Mc : Lc, sp * 0.8, c.dp(1.3));
+    });
+  }
+  if (far <= 0.01) return;
+  const j0 = Math.floor(-c.hwY / rowH) - 1, j1 = Math.floor(c.hwY / rowH) + 1;
+  const i0 = Math.floor(-c.hwX / CONE_S) - 2, i1 = Math.floor(c.hwX / CONE_S) + 2;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const x = i * CONE_S + ((j & 1) === 1 ? CONE_S / 2 : 0) + (hash(i, j, 501) - 0.5) * CONE_S * 0.25;
+    const y = j * rowH + (hash(i, j, 502) - 0.5) * CONE_S * 0.25;
+    const d = Math.hypot(x, y);
+    if (hash(i, j, 503) < ramp(d, 1.6e-5, 4.5e-5) * 0.75) { c.circle(x, y, CONE_S * 0.22, rod, b * far * 0.8, 1); continue; }
+    const h = hash(i, j, 504), col = h < 0.07 ? Sc : h < 0.37 ? Mc : Lc;
+    const rr = CONE_S * (0.36 + 0.06 * ramp(d, 0, 4e-5));
+    c.glow(x, y, c.px(rr * 1.5), col, b * far * 0.55);
+    c.circle(x, y, rr * 0.55, lerpC(col, WHITE, 0.45), b * far, 1);
+  }
+  const lb = b * far * c.band(-5.0, -3.8);
+  c.label(S.cones.s, 0, 0, lb, WHITE, 12, -c.dp(26), true);
+  c.label(S.rods.s, 3.6e-5, 1.2e-5, lb, C(0xFFEDE6DC), 11);
+  c.label(S.falseColor.s, 0, -c.hwY * 0.55, lb, C(0xFFFFE6A0), 11);
+}
+
+function bilayer(c, halfThick, headR, gapHalf, headCol, tailCol, alpha) {
+  if (alpha <= 0.003) return;
+  const step = headR * 2.2, n0 = Math.floor(-c.hwX / step) - 1, n1 = Math.floor(c.hwX / step) + 1;
+  if (n1 - n0 > 400) { c.rect(-c.hwX - 1e-9, -halfThick, c.hwX + 1e-9, halfThick, lerpC(headCol, tailCol, 0.5), alpha * 0.8); return; }
+  for (let n = n0; n <= n1; n++) {
+    const x = n * step;
+    if (Math.abs(x) < gapHalf) continue;
+    for (const side of [-1, 1]) {
+      const yh = side * halfThick, wig = (hash(n, side, 611) - 0.5) * headR * 0.6;
+      c.line(x - headR * 0.3, yh, x - headR * 0.3 + wig, yh * 0.15, tailCol, alpha * 0.8, Math.max(1, c.px(headR * 0.18)));
+      c.line(x + headR * 0.3, yh, x + headR * 0.3 - wig, yh * 0.15, tailCol, alpha * 0.8, Math.max(1, c.px(headR * 0.18)));
+      c.sphere(x, yh, headR, headCol, alpha, 1);
+    }
+  }
+}
+
+const MEM_H = 2.2e-9;
+function drawRhodopsin(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF2A1638), a);
+  if (b <= 0.003) return;
+  bilayer(c, MEM_H, 0.26e-9, 2.6e-9, C(0xFFE6B85C), C(0xFFB79A6A), b);
+  const xs = [-2.1e-9, -1.4e-9, -0.7e-9, 0, 0.7e-9, 1.4e-9, 2.1e-9];
+  const cols = [0xFF9B6CE0, 0xFFB07CF0, 0xFF8A5AD0, 0xFFC08AF8, 0xFF9466DA, 0xFFAD7AEE, 0xFF8C5CD4].map(C);
+  for (let k = 0; k < 6; k++) {
+    const top = k % 2 === 0, y = top ? -2.9e-9 : 2.9e-9, pts = [];
+    for (let q = 0; q < 9; q++) { const u = q / 8; pts.push(xs[k] + (xs[k + 1] - xs[k]) * u, y + (top ? -1 : 1) * Math.sin(u * Math.PI) * 0.6e-9); }
+    c.polyline(pts, C(0xFFC9A6F5), b * 0.8, Math.max(1, c.px(0.18e-9)));
+  }
+  xs.forEach((x, k) => {
+    if (k === 3) return;
+    c.rrect(x - 0.32e-9, -3.0e-9, x + 0.32e-9, 3.0e-9, 0.32e-9, cols[k], b);
+    for (let y = -2.8e-9; y < 2.8e-9; y += 0.36e-9) c.line(x - 0.3e-9, y, x + 0.3e-9, y + 0.18e-9, C(0x55FFFFFF), b, Math.max(1, c.px(0.06e-9)));
+  });
+  const cyc = c.t % 6, straight = ramp(cyc, 1.0, 1.3) * (1 - ramp(cyc, 4.2, 4.8));
+  const chain = [];
+  for (let q = 0; q < 8; q++) {
+    const zig = (q % 2 === 0 ? -1 : 1) * 0.09e-9, bend = q >= 4 ? (q - 3) * 0.32e-9 * (1 - straight) : 0;
+    chain.push(-1.0e-9 + q * 0.28e-9, zig - bend);
+  }
+  c.polyline(chain, C(0xFFFF9A3C), b, Math.max(1.5, c.px(0.12e-9)));
+  for (let q = 0; q < 8; q++) c.sphere(chain[2 * q], chain[2 * q + 1], 0.07e-9, C(0xFFFFB45A), b, 1);
+  if (cyc < 1.1) {
+    const u = cyc / 1.1, pts = [];
+    for (let q = 0; q < 20; q++) {
+      const f = (q / 19) * u, x = -7e-9 + 7e-9 * f, y = -6e-9 + 6e-9 * f;
+      pts.push(x + Math.sin(f * 40) * 0.25e-9, y - Math.sin(f * 40) * 0.25e-9);
+    }
+    c.polyline(pts, C(0xFFFFF07A), b, Math.max(1.5, c.px(0.08e-9)));
+    c.glow(pts[38], pts[39], c.dp(10), C(0xFFFFF07A), b);
+  }
+  const lb = b * c.band(-8.6, -7.4);
+  c.label(S.opsin.s, 0, -3.0e-9, lb, C(0xFFE6D0FF), 12, -c.dp(24), true);
+  c.label(S.retinal.s, 0, 0, lb, C(0xFFFFD0A0), 12, c.dp(26), true);
+  c.label(S.discMembrane.s, -c.hwX * 0.6, MEM_H, lb, C(0xFFF0D8A8), 11, c.dp(22));
+  c.label(S.flip.s, 0, 3.0e-9, lb, C(0xFFFFF0A0), 11, c.dp(40));
+}
+
+const NERVE_R = 1.75e-3;
+const NerveData = (() => {
+  const r = new Rnd(530), f = [0, 0, 1.4e-4], sp = 2.9e-4;
+  for (let j = -8; j <= 8; j++) for (let i = -8; i <= 8; i++) {
+    const x = i * sp + (j % 2 !== 0 ? sp / 2 : 0) + r.gauss() * 3e-5, y = j * sp * 0.87 + r.gauss() * 3e-5;
+    if (Math.hypot(x, y) < NERVE_R - 1.4e-4 && Math.hypot(x, y) > sp * 0.8 && Math.hypot(x + 3.5e-4, y - 2.5e-4) > 2.4e-4) f.push(x, y, 1.05e-4 + r.next() * 0.45e-4);
+  }
+  const d = [];
+  for (let k = 0; k < f.length; k += 3) for (let m = 0; m < 26; m++) { const rr = f[k + 2] * 0.9 * Math.sqrt(r.next()), an = r.next() * 2 * Math.PI; d.push(f[k] + rr * Math.cos(an), f[k + 1] + rr * Math.sin(an)); }
+  return { fascicles: f, axonDots: d };
+})();
+function drawOpticNerve(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFE6C3CC), a);
+  if (b <= 0.003) return;
+  c.circle(0, 0, NERVE_R + 3.6e-4, C(0xFFF4E6EA), b);
+  c.circle(0, 0, NERVE_R + 2.2e-4, C(0xFFE9C8D3), b);
+  c.circle(0, 0, NERVE_R + 0.6e-4, C(0xFFD9879F), b);
+  c.circle(0, 0, NERVE_R, C(0xFFCF7E9A), b);
+  const f = NerveData.fascicles, fc = C(0xFF9E5A92);
+  for (let i = 0; i < f.length; i += 3) c.sphere(f[i], f[i + 1], f[i + 2], fc, b, 1);
+  c.dots(NerveData.axonDots, C(0xFFE9C9F0), c.dp(1.2), b * ramp(-c.logW, 2.6, 3.0) * 0.8);
+  c.circle(-3.5e-4, 2.5e-4, 1.1e-4, C(0xFF6A0E12), b); c.circle(-3.5e-4, 2.5e-4, 0.7e-4, C(0xFFD23A3A), b);
+  c.circle(-2.0e-4, 4.0e-4, 1.2e-4, C(0xFF4A0A10), b); c.circle(-2.0e-4, 4.0e-4, 0.85e-4, C(0xFF8E2228), b);
+  const lb = b * c.band(-2.7, -1.7);
+  c.label(S.nerveSheath.s, 0, -(NERVE_R + 3.6e-4), lb, C(0xFF7A3A50), 11, -c.dp(12), true);
+  c.label(S.fascicle.s, 0, 0, lb, WHITE, 12, -c.dp(22), true);
+  c.label(S.centralVessels.s, -2.8e-4, 3.2e-4, lb, C(0xFFFFE0E0), 11, c.dp(22));
+}
+
+const AX_S = 1.7e-6;
+function drawAxons(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF8E8A86), a);
+  if (b <= 0.003) return;
+  const rowH = AX_S * 0.87, nx = 2 * c.hwX / AX_S + 3, ny = 2 * c.hwY / rowH + 3;
+  const far = 1 - ramp(nx * ny, 2500, 4000);
+  if (far <= 0.01) return;
+  const j0 = Math.floor(-c.hwY / rowH) - 1, j1 = Math.floor(c.hwY / rowH) + 1, i0 = Math.floor(-c.hwX / AX_S) - 2, i1 = Math.floor(c.hwX / AX_S) + 2;
+  const myelin = C(0xFF1E1C1B), inside = C(0xFFCFC9C2), lam = C(0xFF5A5652), fil = C(0xFF7A746E);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const center = i === 0 && j === 0;
+    const x = center ? 0 : i * AX_S + ((j & 1) === 1 ? AX_S / 2 : 0) + (hash(i, j, 701) - 0.5) * AX_S * 0.3;
+    const y = center ? 0 : j * rowH + (hash(i, j, 702) - 0.5) * AX_S * 0.3;
+    const r = center ? 0.5e-6 : (0.2 + 0.3 * hash(i, j, 703)) * 1e-6, my = r * 1.55;
+    if (!c.visible(x, y, c.px(my))) continue;
+    c.circle(x, y, my, myelin, b * far);
+    if (c.px(my - r) > 30) for (let q = 1; q <= 7; q++) c.ring(x, y, r + (my - r) * q / 8, lam, b * far * 0.5, Math.max(1, c.px((my - r) / 40)));
+    c.circle(x, y, r, inside, b * far);
+    if (c.px(r) > 40) for (let q = 0; q < 14; q++) {
+      const an = hash(i * 31 + q, j, 704) * 2 * Math.PI, rr = r * 0.8 * Math.sqrt(hash(i, j * 17 + q, 705));
+      c.circle(x + Math.cos(an) * rr, y + Math.sin(an) * rr, r * 0.045, fil, b * far, 1);
+    }
+  }
+  const lb = b * far * c.band(-6.2, -5.0);
+  c.label(S.axon.s, 0, 0, lb, C(0xFF2A2624), 12, 0, true);
+  c.label(S.myelin.s, 0, 0.5e-6 * 1.55, lb, WHITE, 12, c.dp(16), true);
+  c.label(S.emLike.s, 0, -c.hwY * 0.55, lb, C(0xFFF5F0E6), 11);
+}
+
+const CH_MEM = 2.5e-9;
+function drawIonChannel(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF0E2236), a);
+  if (b <= 0.003) return;
+  const ionCol = C(0xFFB98CFF), t = c.t;
+  for (let n = 0; n < 40; n++) {
+    const x = (hash(n, 0, 801) - 0.5) * 2 * c.hwX, y = -CH_MEM - 1e-9 - hash(n, 1, 802) * (c.hwY + 2e-9);
+    c.sphere(x + Math.sin(t * (0.6 + hash(n, 2, 803)) + n) * 0.4e-9, y, 0.28e-9, ionCol, b * 0.9, 1);
+  }
+  for (let n = 0; n < 8; n++) c.sphere((hash(n, 5, 804) - 0.5) * 2 * c.hwX, CH_MEM + 1e-9 + hash(n, 6, 805) * (c.hwY - 2e-9), 0.28e-9, ionCol, b * 0.6, 1);
+  bilayer(c, CH_MEM, 0.38e-9, 3.6e-9, C(0xFF7FB8E8), C(0xFF5A86A8), b);
+  const parts = [-3.2e-9, -1.9e-9, 0.7e-9, 2.0e-9], pc = [0xFF2FB5A0, 0xFF3FCCB4, 0xFF2FB5A0, 0xFF26A08E].map(C);
+  parts.forEach((x, k) => {
+    c.rrect(x, -3.8e-9, x + 1.2e-9, 3.8e-9, 0.5e-9, pc[k], b);
+    c.line(x + 0.25e-9, -3.4e-9, x + 0.25e-9, 3.4e-9, C(0x44FFFFFF), b, Math.max(1, c.px(0.1e-9)));
+  });
+  for (let k = 0; k < 4; k++) {
+    const u = (t * 0.45 + k / 4) % 1, y = -6e-9 + u * 12e-9, x = -0.6e-9 + Math.sin(u * Math.PI * 3) * 0.12e-9;
+    c.sphere(x, y, 0.28e-9, C(0xFFD4B0FF), b, 1);
+    if (c.px(0.28e-9) > 9) c.label("+", x, y, b, WHITE, clamp(c.px(0.28e-9) / c.density * 0.9, 9, 20), 0, true);
+  }
+  const lb = b * c.band(-8.2, -7.1);
+  c.label(S.membrane2.s, -c.hwX * 0.62, 0, lb, WHITE, 11, 0, true);
+  c.label(S.naChannel.s, 0, -3.8e-9, lb, C(0xFFB8FFF0), 12, -c.dp(16), true);
+  c.label(S.naIon.s, c.hwX * 0.55, -CH_MEM - 3e-9, lb, C(0xFFE6D6FF), 11);
+  c.label(S.flow.s, 0, 3.8e-9, lb, C(0xFFFFF0A0), 11, c.dp(24));
 }
 
 // ── 우주 한 장면 그리기 ────────────────────────────────────────────
