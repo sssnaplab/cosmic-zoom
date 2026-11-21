@@ -220,6 +220,8 @@ function applyLang() {
   $("#intro-go").textContent = U.go.s;
   $("#app-title").textContent = W.appTitle.s;
   $("#app-body").textContent = W.appBody.s;
+  $("#credits-title").textContent = U.photoCredits.s;
+  $("#credits-body").textContent = U.photoCreditsBody.s;
   $("#app-play").textContent = CONFIG.launched ? W.onPlay.s : W.soon.s;
   $("#app-play").toggleAttribute("aria-disabled", !CONFIG.launched);
   $("#app-about").textContent = W.about.s;
@@ -491,6 +493,7 @@ if (EMBED) {
   const q = params.get("branch") || store.get("branch");
   if (q && q !== "hand") setBranch(q, !!params.get("branch"));
 }
+loadPhotos();
 applyLang();
 if (!EMBED && !store.get("intro") && !params.has("logW")) $("#intro").showModal();
 requestAnimationFrame(frame);

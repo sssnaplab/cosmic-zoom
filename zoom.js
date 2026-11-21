@@ -289,6 +289,51 @@ function drawMultiverse(c, b) {
   c.label(S.notToScale.s, 0, -c.hwY * 0.58, top, C(0xFFD8CCFF), 11, c.dp(20));
 }
 
+// ── 실제 사진(NASA). 출처는 docs/photo-credits.md ──────────────────
+const PHOTOS = { base: "img/photos/", m31: null, xdf: null, map: null, earth: null, building: null };
+function loadPhotos() {
+  const img = (name, cb) => { const im = new Image(); im.onload = () => cb(im); im.src = PHOTOS.base + name; };
+  img("m31.jpg", im => { PHOTOS.m31 = im; });
+  img("xdf.jpg", im => { PHOTOS.xdf = im; });
+  img("earth.jpg", im => {
+    const cv = document.createElement("canvas"); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+    const g = cv.getContext("2d"); g.drawImage(im, 0, 0);
+    try { PHOTOS.map = { w: cv.width, h: cv.height, px: g.getImageData(0, 0, cv.width, cv.height).data }; } catch (e) { /* 다른 출처면 못 읽음 */ }
+  });
+}
+/** 출발 위치가 정면에 오는 지구 사진(정사영). 없으면 만들기를 예약하고 null */
+function earthPhoto(place) {
+  if (PHOTOS.earth && PHOTOS.earth.place === place) return PHOTOS.earth.canvas;
+  if (!PHOTOS.map || PHOTOS.building === place) return null;
+  PHOTOS.building = place;
+  setTimeout(() => {
+    const n = 768, m = PHOTOS.map, cv = document.createElement("canvas"); cv.width = cv.height = n;
+    const g = cv.getContext("2d"), out = g.createImageData(n, n), o = out.data;
+    const phi0 = place.lat * Math.PI / 180, lon0 = place.lon * Math.PI / 180, s0 = Math.sin(phi0), c0 = Math.cos(phi0);
+    for (let j = 0; j < n; j++) {
+      const yN = -((j + 0.5) / n * 2 - 1);
+      for (let i = 0; i < n; i++) {
+        const x = (i + 0.5) / n * 2 - 1, rho = Math.hypot(x, yN);
+        if (rho > 1) continue;
+        const cc0 = Math.asin(Math.min(rho, 1)), sc = Math.sin(cc0), cc = Math.cos(cc0);
+        const phi = rho < 1e-9 ? phi0 : Math.asin(cc * s0 + yN * sc * c0 / rho);
+        const lam = lon0 + Math.atan2(x * sc, rho * cc * c0 - yN * sc * s0);
+        let u = (lam / (2 * Math.PI) + 0.5) % 1; if (u < 0) u += 1;
+        const v = Math.min(Math.max(0.5 - phi / Math.PI, 0), 0.9999);
+        const si = ((v * m.h | 0) * m.w + Math.min(u * m.w | 0, m.w - 1)) * 4, di = (j * n + i) * 4;
+        o[di] = m.px[si]; o[di + 1] = m.px[si + 1]; o[di + 2] = m.px[si + 2];
+        o[di + 3] = Math.min(255, Math.max(0, (1 - rho) * n * 0.5 * 255));
+      }
+    }
+    g.putImageData(out, 0, 0);
+    PHOTOS.earth = { place, canvas: cv }; PHOTOS.building = null;
+  }, 0);
+  return null;
+}
+function screenImage(c, img, x, y, w, h, alpha) {
+  const g = c.g; g.save(); g.globalCompositeOperation = "screen"; g.globalAlpha = Math.min(alpha, 1); g.drawImage(img, x, y, w, h); g.restore();
+}
+
 // ── 0. 우주 거대 구조 ─────────────────────────────────────────────
 const WebData = (() => {
   const S = 1e26, r = new Rnd(11), n = 64;
@@ -321,8 +366,16 @@ const WebData = (() => {
   return { S, nodes, edges, pts: p };
 })();
 
-function drawCosmicWeb(c, b) {
+function drawCosmicWeb(c, b, a) {
   const d = WebData, fil = C(0xFF7D6BFF);
+  if (PHOTOS.xdf) {
+    const ba = Math.max(a || 0, b) * 0.55;
+    if (ba > 0.01) {
+      const im = PHOTOS.xdf, sc = Math.max(c.w / im.naturalWidth, c.h / im.naturalHeight), dw = im.naturalWidth * sc, dh = im.naturalHeight * sc;
+      screenImage(c, im, (c.w - dw) / 2, (c.h - dh) / 2, dw, dh, ba);
+      c.label(S.creditXdf.s, 0, 0, ba * c.band(25.3, 26.8), C(0xFFB8C2FF), 10, c.h * 0.18);
+    }
+  }
   const wpx = Math.max(1.5, c.px(d.S * 0.004));
   for (const [e0, e1] of d.edges) c.line(d.nodes[2 * e0], d.nodes[2 * e0 + 1], d.nodes[2 * e1], d.nodes[2 * e1 + 1], fil, b * 0.22, wpx);
   for (let i = 0; i < d.nodes.length / 2; i++) c.glow(d.nodes[2 * i], d.nodes[2 * i + 1], c.px(d.S * 0.03), C(0xFFB9A8FF), b * 0.45);
@@ -393,7 +446,11 @@ function drawLocalGroup(c, b) {
   const d = LocalGroupData;
   c.dots(d.dwarfs, C(0xFFCFD6FF), c.dp(1.8), b * 0.7);
   c.glow(0, 0, Math.max(c.dp(3), c.px(6e20)), C(0xFFE8E4FF), b * 0.75);
-  spiralOval(c, d.ax, d.ay, 1.1e21, 0.32, -35, b, c.dp(4));
+  const mr = Math.max(c.px(1.3e21), c.dp(6));
+  if (PHOTOS.m31 && mr > c.dp(3) && c.visible(d.ax, d.ay, mr)) {
+    screenImage(c, PHOTOS.m31, c.sx(d.ax) - mr, c.sy(d.ay) - mr, mr * 2, mr * 2, b);
+    c.label(S.creditM31.s, d.ax, d.ay, b * c.band(22.3, 23.9), C(0xFFB8C2FF), 10, mr + c.dp(10));
+  } else spiralOval(c, d.ax, d.ay, 1.1e21, 0.32, -35, b, c.dp(4));
   spiralOval(c, d.m33x, d.m33y, 3e20, 0.7, 20, b * 0.9, c.dp(2.5));
   c.glow(1.2e21, 1.0e21, Math.max(c.dp(2), c.px(9e19)), C(0xFFDDE6FF), b * 0.9);
   c.glow(1.6e21, 1.55e21, Math.max(c.dp(1.5), c.px(5e19)), C(0xFFDDE6FF), b * 0.8);
@@ -643,13 +700,18 @@ function drawEarth(c, b) {
   c.circle(0, 0, r, OCEAN, b, 1.5);
   if (rp < 2.5) return;
   const map = Geo.map;
-  for (const p of map.world) c.polyFill(p.xy, p.bbox, LAND, b);
-  for (const p of map.korea) c.polyFill(p.xy, p.bbox, LAND, b);
-  for (const p of map.water) c.polyFill(p.xy, p.bbox, OCEAN, b);
-  const ca = b * 0.42 * ramp(c.logW, 6.3, 6.9);
+  const photo = rp >= 6 && rp <= 24000 ? earthPhoto(SESSION.place) : null;
+  if (photo) { c.alpha(b); c.g.drawImage(photo, x - rp, y - rp, rp * 2, rp * 2); }
+  else {
+    for (const p of map.world) c.polyFill(p.xy, p.bbox, LAND, b);
+    for (const p of map.korea) c.polyFill(p.xy, p.bbox, LAND, b);
+    for (const p of map.water) c.polyFill(p.xy, p.bbox, OCEAN, b);
+  }
+  const ca = photo ? 0 : b * 0.42 * ramp(c.logW, 6.3, 6.9);
   if (ca > 0.01 && rp > 8) for (let i = 0; i < map.clouds.length; i += 3) c.circle(map.clouds[i], map.clouds[i + 1], map.clouds[i + 2], WHITE, ca);
   if (rp < 6000) c.radial(x, y, rp, [[0, C(0x00000000)], [0.62, C(0x00000000)], [1, C(0xB0000010)]], b, x - rp * 0.45, y - rp * 0.4, rp * 1.75);
   c.label(SESSION.place.country.s, 0, 0, b * c.band(6.4, 7.6), WHITE, 13, c.dp(-18), true);
+  if (photo) c.label(S.creditEarth.s, 0, r, b * c.band(6.6, 7.8), C(0xFFB8C2FF), 10, c.dp(14));
 }
 
 // ── 10. 지역 ───────────────────────────────────────────────────────
