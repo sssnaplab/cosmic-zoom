@@ -855,7 +855,8 @@ function blanketChecker(c, x0, y0, x1, y1, alpha) {
 }
 
 /** 고른 갈래의 몸 부위(손·눈)가 화면 가운데에 오도록 아이 그림을 옮겨 그린다 */
-function branchFocus(id) { return id === "eye" ? [-0.338, -0.45] : id === "nerve" ? [-0.33, -0.455] : [0, 0]; }
+const FOCUS = { eye: [-0.338, -0.45], nerve: [-0.33, -0.455], blood: [-0.02, -0.14], heart: [-0.25, -0.17], brain: [-0.30, -0.49] };
+function branchFocus(id) { return FOCUS[id] || [0, 0]; }
 const BODY = { branch: "hand" };
 function drawKid(c, b, a) {
   const f = branchFocus(BODY.branch);
@@ -1662,4 +1663,359 @@ const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
 function powerText(logW) {
   const n = Math.floor(logW + 0.5);
   return "10" + (n < 0 ? "⁻" : "") + String(Math.abs(n)).split("").map(d => SUP[+d]).join("") + " m";
+}
+
+// ── 1.9.0 신체 갈래: 🩸 혈액 · ❤️ 심장 · 🧠 뇌 (앱 BodyScenes2.kt 와 같은 그림) ──
+function xray(c, b, logS) { return b * (0.4 + 0.6 * ramp(logS + 1.3 - c.logW, 0, 0.9)); }
+
+const VES_R = 4.2e-4, WALL = 1.1e-4;
+function drawVessel(c, b, a) {
+  if (a > 0.003) {
+    c.fill(C(0xFFE9A48E), a);
+    const fib = C(0xFFF6C9B4), w = Math.max(1, c.px(2e-5));
+    c.grid(6e-4, 900, (i, j, x, y) => {
+      const an = hash(i, j, 901) * Math.PI, cx = x + 6e-4 * hash(i, j, 902), cy = y + 6e-4 * hash(i, j, 903);
+      c.line(cx, cy, cx + Math.cos(an) * 5e-4, cy + Math.sin(an) * 5e-4, fib, a * 0.6, w);
+    });
+  }
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -2.52), far = c.hwX * 1.2;
+  c.glow(0, 0, Math.max(c.px(VES_R * 4), c.dp(10)), C(0x66B02020), bb);
+  c.rect(-far, -VES_R - WALL, far, VES_R + WALL, C(0xFFC8505A), bb);
+  c.rect(-far, -VES_R - WALL * 0.45, far, VES_R + WALL * 0.45, C(0xFFA8303C), bb);
+  const rcPx = c.px(3.8e-6);
+  c.rect(-far, -VES_R, far, VES_R, lerpC(C(0xFFB8202C), C(0xFFF0C68A), ramp(rcPx, 1.2, 4)), bb);
+  if (c.px(WALL) > 6) c.grid(1.3e-4, 2000, (i, j, x) => {
+    if (j !== 0) return;
+    for (const side of [-1, 1]) c.line(x, side * (VES_R + WALL * 0.2), x + 0.6e-4, side * (VES_R + WALL * 0.8), C(0xFF8A2430), bb * 0.6, Math.max(1, c.px(1.2e-5)));
+  });
+  const cell = 1.6e-5, nx = 2 * far / cell, ny = 2 * VES_R / cell;
+  if (nx * ny < 60000 && rcPx > 1) {
+    const flow = c.t * 1.6e-4;
+    const j0 = Math.floor(-VES_R / cell), j1 = Math.floor(VES_R / cell);
+    const i0 = Math.floor((-far - flow) / cell) - 1, i1 = Math.floor((far - flow) / cell) + 1;
+    const red = C(0xFFC21E2A), pale = C(0xFFE2525A);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      if (hash(i, j, 905) > 0.55) continue;
+      const y = j * cell + cell * hash(i, j, 906);
+      if (Math.abs(y) > VES_R - 4e-6) continue;
+      const speed = 1 - (y / VES_R) * (y / VES_R) * 0.7, x = i * cell + cell * hash(i, j, 907) + flow * speed;
+      if (Math.abs(x) < 1.2e-5 && Math.abs(y) < 1.2e-5) continue;
+      if (!c.visible(x, y, rcPx)) continue;
+      c.disc(c.sx(x), c.sy(y), rcPx, red, bb);
+      if (rcPx > 3) c.disc(c.sx(x), c.sy(y), rcPx * 0.45, pale, bb);
+    }
+  }
+  c.circle(0, 0, 3.8e-6, C(0xFFC21E2A), bb, 1);
+  const lb = bb * c.band(-3.0, -2.0);
+  c.label(S.vesselWall.s, -c.hwX * 0.45, -(VES_R + WALL), lb, WHITE, 12, -c.dp(14), true);
+  c.label(S.plasma.s, c.hwX * 0.45, VES_R * 0.6, lb, C(0xFF5A3010), 11, 0, true);
+  c.label(S.rbc.s, 0, 0, lb, C(0xFF5A1010), 12, -c.dp(22), true);
+}
+
+const RBC_R = 3.9e-6, RBC_CELL = 1.05e-5;
+const RBC_STOPS = [[0, C(0xFFE88A84)], [0.35, C(0xFFD9525A)], [0.7, C(0xFFC0202C)], [0.92, C(0xFFA0141E)], [1, C(0xFF7A0E16)]];
+function rbcDisc(c, x, y, r, tilt, a) {
+  const rp = c.px(r);
+  if (rp < 0.6 || !c.visible(x, y, rp)) return;
+  const X = c.sx(x), Y = c.sy(y);
+  if (rp < 4) { c.disc(X, Y, rp, C(0xFFC21E2A), a); return; }
+  const g = c.g, sy = 0.55 + 0.45 * Math.abs(Math.cos(tilt));
+  g.save(); g.translate(X, Y); g.scale(1, sy);
+  c.radial(0, 0, rp, RBC_STOPS, a);
+  g.restore();
+}
+function drawRedCells(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFF0C68A), a);
+  if (b <= 0.003) return;
+  const drift = c.t * 2e-6, nx = 2 * c.hwX / RBC_CELL + 3, ny = 2 * c.hwY / RBC_CELL + 3;
+  const far = 1 - ramp(nx * ny, 2500, 4500);
+  if (far > 0.01) {
+    const i0 = Math.floor((-c.hwX - drift) / RBC_CELL) - 1, i1 = Math.floor((c.hwX - drift) / RBC_CELL) + 1;
+    const j0 = Math.floor(-c.hwY / RBC_CELL) - 1, j1 = Math.floor(c.hwY / RBC_CELL) + 1;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      if (i === 0 && j === 0) continue;
+      const h = hash(i, j, 911);
+      const x = i * RBC_CELL + RBC_CELL * 0.5 * (hash(i, j, 912) - 0.5) + drift, y = j * RBC_CELL + RBC_CELL * 0.5 * (hash(i, j, 913) - 0.5);
+      if (h < 0.025) {
+        c.circle(x, y, 6e-6, C(0xFFF6EEF4), b * far);
+        for (let q = 0; q < 3; q++) c.circle(x + Math.cos(q * 2.1) * 2.2e-6, y + Math.sin(q * 2.1) * 2.2e-6, 1.9e-6, C(0xFF6A3A9A), b * far);
+      } else if (h < 0.08) c.circle(x, y, 1.1e-6, C(0xFFB07AB8), b * far, 1);
+      else if (h < 0.82) rbcDisc(c, x, y, RBC_R * (0.92 + 0.16 * hash(i, j, 914)), hash(i, j, 915) * 1.4, b * far);
+    }
+  }
+  rbcDisc(c, 0, 0, RBC_R, 0, b);
+  const lb = b * c.band(-5.0, -4.0);
+  c.label(S.rbc.s, 0, 0, lb, WHITE, 12, -c.px(RBC_R) - c.dp(14), true);
+  c.label(S.wbc.s, -c.hwX * 0.5, -c.hwY * 0.45, lb * far, C(0xFF4A2A6A), 11, 0, true);
+  c.label(S.platelet.s, c.hwX * 0.45, c.hwY * 0.45, lb * far, C(0xFF6A2A6A), 11, 0, true);
+  c.label(S.smearLike.s, 0, c.hwY * 0.7, lb, C(0xFF5A3010), 11);
+}
+
+const HB = 1.4e-9;
+function drawHemoglobin(c, b, a) {
+  if (a > 0.003) {
+    c.fill(C(0xFF3A0A12), a);
+    const col = C(0xFF7A2030);
+    c.grid(7e-9, 2500, (i, j, x, y) => {
+      if (Math.abs(i) <= 1 && Math.abs(j) <= 1) return;
+      const cx = x + 3.5e-9 + (hash(i, j, 921) - 0.5) * 1.5e-9, cy = y + 3.5e-9 + (hash(i, j, 922) - 0.5) * 1.5e-9;
+      for (let q = 0; q < 4; q++) c.sphere(cx + (q % 2 === 0 ? -1 : 1) * HB * 0.7, cy + (q < 2 ? -1 : 1) * HB * 0.7, HB, col, a * 0.55, 1);
+    });
+  }
+  if (b <= 0.003) return;
+  const t = c.t, breathe = 0.05 * Math.sin(t * 0.9);
+  const cols = [0xFFE0464E, 0xFFF08A3C, 0xFFF08A3C, 0xFFE0464E].map(C), pos = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+  for (let q = 0; q < 4; q++) {
+    const px0 = pos[q][0] * HB * (0.78 + breathe), py0 = pos[q][1] * HB * (0.78 + breathe);
+    for (let s = 0; s < 7; s++) { const an = s * 0.9 + q; c.sphere(px0 + Math.cos(an) * HB * 0.45, py0 + Math.sin(an) * HB * 0.45, HB * 0.55, cols[q], b, 1); }
+    const hx = px0 + pos[q][0] * HB * 0.55, hy = py0 + pos[q][1] * HB * 0.2;
+    c.rrect(hx - HB * 0.32, hy - HB * 0.1, hx + HB * 0.32, hy + HB * 0.1, HB * 0.08, C(0xFF8A1A10), b);
+    c.sphere(hx, hy, HB * 0.12, C(0xFFFFB040), b, 1);
+    const ph = Math.sin(t * 0.8 + q * 1.7), off = ph > -0.2 ? 0 : HB * (0.6 + 0.4 * ph);
+    const ox = hx + pos[q][0] * (HB * 0.3 + off), oy = hy + pos[q][1] * (HB * 0.35 + off);
+    c.sphere(ox - HB * 0.1, oy, HB * 0.14, C(0xFF6EC6FF), b, 1);
+    c.sphere(ox + HB * 0.1, oy, HB * 0.14, C(0xFF6EC6FF), b, 1);
+  }
+  const lb = b * c.band(-8.5, -7.5);
+  c.label(S.alphaChain.s, -HB * 1.6, -HB * 1.8, lb, C(0xFFFFD0D0), 11, 0, true);
+  c.label(S.betaChain.s, HB * 1.6, -HB * 1.8, lb, C(0xFFFFE0B0), 11, 0, true);
+  c.label(S.heme.s, 0, HB * 2.3, lb, C(0xFFFFE6A0), 11, 0, true);
+  c.label(S.oxygen.s, c.hwX * 0.55, -c.hwY * 0.6, lb, C(0xFFB8E4FF), 11, 0, true);
+}
+
+const HX = -0.012, HY = 0.006;
+const HEART_BODY = (() => {
+  const n = 64, out = [];
+  for (let i = 0; i < n; i++) {
+    const th = 2 * Math.PI * i / n, r = 0.052 * (1 + 0.18 * Math.cos(th - 0.9)) * (1 - 0.1 * Math.sin(2 * th));
+    const pull = Math.max(0, Math.cos(th - 0.85)) * 0.022;
+    out.push(HX + r * Math.cos(th) * 1.05 + pull * Math.cos(0.85), HY + r * Math.sin(th) * 0.92 + pull * Math.sin(0.85));
+  }
+  return out;
+})();
+function drawHeart(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF5A1C24), a);
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -0.66), beat = (c.t * 1.2) % 1;
+  const squeeze = (beat < 0.25 ? Math.sin(beat / 0.25 * Math.PI) : 0) * 0.035;
+  c.circle(HX, HY - 0.01, 0.1, C(0xFF5A1C24), bb * 0.85);
+  c.glow(HX, HY, c.px(0.11), C(0x55FF4050), bb);
+  const g = c.g, X = c.sx(HX), Y = c.sy(HY);
+  g.save(); g.translate(X, Y); g.scale(1 - squeeze, 1 - squeeze); g.translate(-X, -Y);
+  const aorta = [];
+  for (let i = 0; i < 10; i++) { const an = Math.PI * (1 - i / 9); aorta.push(HX - 0.004 + Math.cos(an) * 0.022, HY - 0.05 - Math.sin(an) * 0.03); }
+  c.polyline(aorta, C(0xFFD8404A), bb, c.px(0.016));
+  c.line(HX + 0.012, HY - 0.035, HX + 0.03, HY - 0.07, C(0xFF4A6AD8), bb, c.px(0.014));
+  c.line(HX - 0.03, HY - 0.03, HX - 0.034, HY - 0.085, C(0xFF4A6AD8), bb, c.px(0.013));
+  c.polyFill(HEART_BODY, null, C(0xFFB8303E), bb);
+  const sul = [];
+  for (let i = 0; i < 12; i++) { const u = i / 11; sul.push(HX - 0.006 + u * 0.03 + Math.sin(u * 5) * 0.003, HY - 0.035 + u * 0.075); }
+  c.polyline(sul, C(0xFFFFE0A0), bb * 0.55, c.px(0.0045));
+  c.polyline(sul, C(0xFFE0404A), bb, c.px(0.0022));
+  for (let k = 0; k < 5; k++) {
+    const i = 2 * (2 + k * 2), x0 = sul[i], y0 = sul[i + 1], dir = k % 2 === 0 ? 1 : -1;
+    c.line(x0, y0, x0 + dir * 0.016, y0 + 0.01, C(0xFFE0404A), bb * 0.8, c.px(0.0012));
+  }
+  c.circle(HX - 0.036, HY - 0.022, 0.017, C(0xFFA42A38), bb);
+  c.circle(HX + 0.034, HY - 0.03, 0.014, C(0xFFA42A38), bb);
+  c.glow(HX - 0.02, HY - 0.015, c.px(0.02), C(0x44FFFFFF), bb);
+  g.restore();
+  c.circle(0, 0, 0.0015, C(0xFF8E1E2C), bb * c.band(-2.4, -1.2));
+  const lb = bb * c.band(-1.4, -0.4);
+  c.label(S.aorta.s, HX - 0.004, HY - 0.085, lb, WHITE, 12, 0, true);
+  c.label(S.leftVentricle.s, 0, 0, lb, WHITE, 12, c.dp(22), true);
+  c.label(S.rightVentricle.s, HX - 0.03, HY + 0.02, lb, WHITE, 11, 0, true);
+  c.label(S.coronary.s, HX + 0.03, HY + 0.05, lb, C(0xFFFFE0A0), 11);
+}
+
+const CM_ROW = 2e-5, CM_LEN = 9e-5;
+function drawHeartMuscle(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFF4D6DC), a);
+  if (b <= 0.003) return;
+  const beat = (c.t * 1.2) % 1, sq = 1 - (beat < 0.25 ? Math.sin(beat / 0.25 * Math.PI) : 0) * 0.05;
+  const j0 = Math.floor(-c.hwY / CM_ROW) - 1, j1 = Math.floor(c.hwY / CM_ROW) + 1;
+  const far = 1 - ramp((2 * c.hwX / CM_LEN + 2) * (j1 - j0 + 1), 900, 1600);
+  if (far <= 0.01) return;
+  const stripeOn = c.px(2e-6) > 2.5, cell = C(0xFFD8607A), stripe = C(0xFFA83250), disc = C(0xFF5A1030), nuc = C(0xFF4A2A7A), cap = C(0xFFC21E2A);
+  const g = c.g;
+  for (let j = j0; j <= j1; j++) {
+    const yc = j * CM_ROW, shift = hash(j, 0, 931) * CM_LEN;
+    const i0 = Math.floor((-c.hwX - shift) / CM_LEN) - 1, i1 = Math.floor((c.hwX - shift) / CM_LEN) + 1;
+    for (let i = i0; i <= i1; i++) {
+      const x0 = (i * CM_LEN + shift) * sq, x1 = ((i + 1) * CM_LEN + shift) * sq - 1.5e-6;
+      const half = CM_ROW * (0.36 + 0.06 * hash(i, j, 932));
+      c.rect(x0, yc - half, x1, yc + half, cell, b * far);
+      if (stripeOn) for (let x = x0 + 1e-6; x < x1; x += 2e-6 * sq) if (Math.abs(x) < c.hwX + 2e-6) c.line(x, yc - half, x, yc + half, stripe, b * far * 0.55, Math.max(1, c.px(0.6e-6)));
+      const steps = [];
+      for (let q = 0; q < 6; q++) steps.push(x1 + (q % 2 === 0 ? 0 : 1.5e-6), yc - half + half * 2 * q / 5);
+      c.polyline(steps, disc, b * far, Math.max(1, c.px(1e-6)));
+      const nx = (x0 + x1) / 2 + (hash(i, j, 933) - 0.5) * 1e-5;
+      if (c.px(4e-6) > 1) { c.alpha(b * far); g.fillStyle = nuc.s; g.beginPath(); g.ellipse(c.sx(nx), c.sy(yc), c.px(6e-6), c.px(2.6e-6), 0, 0, 2 * Math.PI); g.fill(); }
+    }
+    if (hash(j, 1, 934) < 0.6) c.line(-c.hwX * 1.2, yc + CM_ROW / 2, c.hwX * 1.2, yc + CM_ROW / 2, cap, b * far * 0.8, Math.max(1, c.px(3.5e-6)));
+  }
+  const lb = b * far * c.band(-4.5, -3.5);
+  c.label(S.cardiomyocyte.s, 0, 0, lb, WHITE, 12, -c.dp(22), true);
+  c.label(S.intercalated.s, c.hwX * 0.45, -CM_ROW, lb, C(0xFF3A0A20), 11, 0, true);
+  c.label(S.striations.s, -c.hwX * 0.45, CM_ROW, lb, C(0xFF3A0A20), 11, 0, true);
+  c.label(S.stainLike.s, 0, c.hwY * 0.72, lb, C(0xFF5A1030), 11);
+}
+
+const THIN_DY = 1.3e-8, HEAD_SP = 1.43e-8;
+function drawMyosin(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF16101C), a);
+  if (b <= 0.003) return;
+  const t = c.t, slide = (t * 1.2e-9) % 5.5e-9;
+  for (const side of [-1, 1]) {
+    const y = side * THIN_DY, n0 = Math.floor((-c.hwX - 6e-9) / 5.5e-9) - 1, n1 = Math.floor((c.hwX + 6e-9) / 5.5e-9) + 1;
+    if (n1 - n0 > 600) { c.line(-c.hwX, y, c.hwX, y, C(0xFF6CC4E0), b, Math.max(1, c.px(7e-9))); continue; }
+    for (let n = n0; n <= n1; n++) {
+      const x = n * 5.5e-9 - slide * side, tw = Math.sin(n * 0.42);
+      c.sphere(x, y - tw * 1.4e-9, 2.6e-9, C(0xFF5AB4D8), b, 1);
+      c.sphere(x + 2.75e-9, y + tw * 1.4e-9, 2.6e-9, C(0xFF7FD0EA), b, 1);
+    }
+  }
+  c.rrect(-c.hwX * 1.2, -3.5e-9, c.hwX * 1.2, 3.5e-9, 3.5e-9, C(0xFFE0A040), b);
+  c.line(-c.hwX * 1.2, -1.2e-9, c.hwX * 1.2, -1.2e-9, C(0x55FFFFFF), b, Math.max(1, c.px(0.8e-9)));
+  const m0 = Math.floor(-c.hwX / HEAD_SP) - 1, m1 = Math.floor(c.hwX / HEAD_SP) + 1;
+  if (m1 - m0 < 400) for (let m = m0; m <= m1; m++) for (const side of [-1, 1]) {
+    const x0 = m * HEAD_SP + (side > 0 ? HEAD_SP / 2 : 0), ph = (t * 0.7 + hash(m, side, 941)) % 1, dir = x0 > 0 ? -1 : 1;
+    const ang = ph < 0.45 ? 0.75 - ph / 0.45 * 0.9 : ph < 0.6 ? -0.15 : -0.15 + (ph - 0.6) / 0.4 * 0.9;
+    const attached = ph < 0.45, len = 1e-8, y0 = side * 3.5e-9;
+    const hx = x0 + dir * Math.sin(ang) * len * 0.6, hy = y0 + side * Math.cos(ang) * len * (attached ? 0.95 : 0.75);
+    c.line(x0, y0, hx, hy, C(0xFFD08A30), b, Math.max(1, c.px(1.6e-9)));
+    c.sphere(hx, hy, 2e-9, attached ? C(0xFFFF7A50) : C(0xFFF0B860), b, 1);
+    if (!attached && ph < 0.75) c.sphere(hx + 2.4e-9, hy, 0.9e-9, C(0xFFFFF07A), b, 1);
+  }
+  const lb = b * c.band(-7.9, -6.9);
+  c.label(S.myosin.s, -c.hwX * 0.5, 0, lb, C(0xFF3A2000), 12, 0, true);
+  c.label(S.actin.s, -c.hwX * 0.5, -THIN_DY, lb, WHITE, 12, -c.dp(22), true);
+  c.label(S.atp.s, c.hwX * 0.5, THIN_DY, lb, C(0xFFFFF0A0), 11, c.dp(24), true);
+  c.label(S.powerStroke.s, 0, c.hwY * 0.72, lb, C(0xFFFFE6C0), 11);
+}
+
+const BX = 0.004, BY = 0.014;
+const BrainData = (() => {
+  const n = 72, outline = [];
+  for (let i = 0; i < n; i++) {
+    const th = 2 * Math.PI * i / n, ry = 0.058 * (Math.sin(th) > 0 ? 0.82 : 1);
+    outline.push(BX + 0.078 * Math.cos(th) * (1 + 0.06 * Math.cos(2 * th)), BY + ry * Math.sin(th) - 0.004 * Math.cos(th));
+  }
+  const r = new Rnd(950), gyri = [];
+  for (let k = 0; k < 7; k++) {
+    const sc = 0.22 + 0.12 * k, waves = 7 + 3 * k, ph = r.next() * 2 * Math.PI, m = 160, pts = [];
+    for (let q = 0; q <= m; q++) {
+      const th = 2 * Math.PI * q / m, wob = 1 + 0.09 * Math.sin(waves * th + ph) + 0.04 * Math.sin((waves * 2 + 1) * th);
+      pts.push(BX + 0.078 * sc * wob * Math.cos(th), BY + 0.058 * sc * wob * (Math.sin(th) > 0 ? 0.82 : 1) * Math.sin(th));
+    }
+    gyri.push(pts);
+  }
+  return { outline, gyri };
+})();
+function drawBrain(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF2E1A2A), a);
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -0.6);
+  c.circle(BX, BY, 0.105, C(0xFF2E1A2A), bb * 0.9);
+  c.glow(BX, BY, c.px(0.11), C(0x55FFB0C8), bb);
+  c.line(BX + 0.02, BY + 0.04, BX + 0.03, BY + 0.085, C(0xFFE09AA8), bb, c.px(0.014));
+  c.circle(BX + 0.05, BY + 0.05, 0.025, C(0xFFE48FA0), bb);
+  if (c.px(0.002) > 1.5) for (let k = 0; k < 7; k++) c.ring(BX + 0.05, BY + 0.05, 0.008 + k * 0.0025, C(0xFFB85A72), bb * 0.6, Math.max(1, c.px(0.0008)));
+  c.polyFill(BrainData.outline, null, C(0xFFF2A9B8), bb);
+  const gw = Math.max(1, c.px(0.0016));
+  for (const gy of BrainData.gyri) c.polyline(gy, C(0xFFC0687E), bb * 0.85, gw);
+  c.polyline([BX + 0.004, BY - 0.056, BX, BY - 0.03, BX + 0.008, BY - 0.005, BX + 0.002, BY + 0.02], C(0xFF9A3E58), bb, Math.max(1, c.px(0.0024)));
+  c.polyline([BX - 0.05, BY + 0.018, BX - 0.02, BY + 0.01, BX + 0.02, BY, BX + 0.045, BY - 0.012], C(0xFF9A3E58), bb, Math.max(1, c.px(0.0026)));
+  c.glow(BX - 0.03, BY - 0.03, c.px(0.03), C(0x33FFFFFF), bb);
+  c.circle(0, 0, 0.0012, C(0xFF9A3E58), bb * c.band(-2.4, -1.2));
+  const lb = bb * c.band(-1.3, -0.3);
+  c.label(S.cerebrum.s, BX - 0.045, BY + 0.015, lb, C(0xFF5A1A30), 12, 0, true);
+  c.label(S.cerebellum.s, BX + 0.05, BY + 0.05, lb, C(0xFF5A1A30), 11, 0, true);
+  c.label(S.brainstem.s, BX + 0.03, BY + 0.085, lb, WHITE, 11, c.dp(10));
+  c.label(S.cortex.s, 0, 0, lb, C(0xFF5A1A30), 11, -c.dp(18));
+}
+
+const NEU_CELL = 6e-5;
+const NeuronData = (() => {
+  const r = new Rnd(960), shapes = [];
+  function branch(out, x0, y0, an0, len, depth) {
+    const pts = []; let x = x0, y = y0, an = an0;
+    for (let s = 0; s <= 6; s++) { pts.push(x, y); if (s === 6) break; an += r.gauss() * 0.25; x += Math.cos(an) * len / 6; y += Math.sin(an) * len / 6; }
+    out.push(pts);
+    if (depth < 3) { const k = r.next() < 0.7 ? 2 : 1; for (let q = 0; q < k; q++) branch(out, x, y, an + (q === 0 ? 0.45 : -0.45) + r.gauss() * 0.2, len * 0.68, depth + 1); }
+  }
+  for (let s = 0; s < 6; s++) {
+    const out = [];
+    branch(out, 0, -6e-6, -Math.PI / 2 + r.gauss() * 0.15, 3.2e-5, 0);
+    for (let k = 0; k < 4; k++) branch(out, 0, 3e-6, Math.PI / 2 + (k - 1.5) * 0.7 + r.gauss() * 0.2, 1.6e-5, 1);
+    const ax = []; let x = 0, y = 6e-6, an = Math.PI / 2 + r.gauss() * 0.1;
+    for (let q = 0; q < 12; q++) { ax.push(x, y); an += r.gauss() * 0.08; x += Math.cos(an) * 7e-6; y += Math.sin(an) * 7e-6; }
+    out.push(ax); shapes.push(out);
+  }
+  return shapes;
+})();
+function drawNeurons(c, b, a) {
+  if (a > 0.003) {
+    c.fill(C(0xFFE6C27E), a);
+    const dot = C(0xFFD2A860);
+    c.grid(3e-5, 2500, (i, j, x, y) => c.circle(x + 3e-5 * hash(i, j, 961), y + 3e-5 * hash(i, j, 962), 2.5e-6, dot, a * 0.5, 1));
+  }
+  if (b <= 0.003) return;
+  const far = 1 - ramp((2 * c.hwX / NEU_CELL + 2) * (2 * c.hwY / NEU_CELL + 2), 1600, 2600), ink = C(0xFF241408), g = c.g;
+  if (far > 0.01) c.grid(NEU_CELL, 2600, (i, j, x, y) => {
+    if (hash(i, j, 963) > 0.6) return;
+    const cx = x + NEU_CELL * (0.2 + 0.6 * hash(i, j, 964)), cy = y + NEU_CELL * (0.2 + 0.6 * hash(i, j, 965));
+    const sh = NeuronData[Math.min(5, Math.floor(hash(i, j, 966) * 6))], sc = 0.8 + 0.5 * hash(i, j, 967);
+    sh.forEach((br, n) => c.polyline(br.map((v, q) => q % 2 === 0 ? cx + v * sc : cy + v * sc), ink, b * far, Math.max(1.2, c.px(n === 0 ? 2.2e-6 : 1.2e-6))));
+    const s = c.px(5e-6 * sc);
+    if (s > 0.8) { const X = c.sx(cx), Y = c.sy(cy); c.alpha(b * far); g.fillStyle = ink.s; g.beginPath(); g.moveTo(X, Y - s * 1.4); g.lineTo(X + s, Y + s * 0.8); g.lineTo(X - s, Y + s * 0.8); g.closePath(); g.fill(); }
+  });
+  c.polyline([-c.hwX * 1.2, 2e-6, -3e-5, 1e-6, 0, 0, 3e-5, -2e-6, c.hwX * 1.2, -3e-6], ink, b, Math.max(1.2, c.px(1.6e-6)));
+  for (let q = -6; q <= 6; q++) { const x = q * 7e-6 + 2e-6; c.line(x, 0, x + 1e-6, -2.4e-6, ink, b, Math.max(1, c.px(0.5e-6))); c.circle(x + 1e-6, -2.6e-6, 0.7e-6, ink, b, 1); }
+  const lb = b * c.band(-4.2, -3.2);
+  c.label(S.soma.s, -c.hwX * 0.5, -c.hwY * 0.4, lb * far, C(0xFF3A2008), 11, 0, true);
+  c.label(S.dendrite.s, 0, 0, lb, C(0xFF3A2008), 12, c.dp(20), true);
+  c.label(S.golgiLike.s, 0, c.hwY * 0.72, lb, C(0xFF5A3A10), 11);
+}
+
+const CLEFT = 1e-8;
+const SynVesicles = (() => { const r = new Rnd(970), v = []; for (let n = 0; n < 34; n++) v.push((r.next() - 0.5) * 5e-7, -CLEFT - 2.4e-8 - r.next() * 2.4e-7); return v; })();
+function drawSynapse(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF1C2232), a);
+  if (b <= 0.003) return;
+  const W = c.hwX * 1.2, H = c.hwY * 1.2, t = c.t;
+  c.rect(-W, -H, W, -CLEFT, C(0xFF3A4A66), b);
+  c.rect(-W, CLEFT, W, H, C(0xFF4A3A5A), b);
+  c.line(-W, -CLEFT, W, -CLEFT, C(0xFF9AB4E0), b, Math.max(1.5, c.px(4e-9)));
+  c.line(-W, CLEFT, W, CLEFT, C(0xFFC8A0E0), b, Math.max(1.5, c.px(4e-9)));
+  c.rect(-1.6e-7, CLEFT, 1.6e-7, CLEFT + 3e-8, C(0xFF2A1A3A), b * 0.8);
+  const mx = -2.4e-7, my = -2.8e-7, g = c.g;
+  if (c.visible(mx, my, c.px(1.4e-7))) {
+    c.alpha(b); g.fillStyle = C(0xFF6A5A3A).s; g.beginPath(); g.ellipse(c.sx(mx), c.sy(my), c.px(1.4e-7), c.px(6e-8), 0, 0, 2 * Math.PI); g.fill();
+    for (let q = -3; q <= 3; q++) c.line(mx + q * 3.5e-8, my - 4.5e-8, mx + q * 3.5e-8 + 1e-8, my + 4.5e-8, C(0xFFB8A070), b * 0.8, Math.max(1, c.px(6e-9)));
+  }
+  const vr = 2e-8;
+  for (let n = 0; n < SynVesicles.length; n += 2) {
+    const x = SynVesicles[n], y = SynVesicles[n + 1];
+    if (Math.abs(x - mx) < 1.6e-7 && Math.abs(y - my) < 8e-8) continue;
+    c.ring(x, y, vr, C(0xFFCFE0FF), b, Math.max(1, c.px(4e-9)));
+    c.circle(x, y, vr * 0.75, C(0xFF5A6A8A), b);
+  }
+  const cyc = (t * 0.5) % 1, fx = -6e-8, dock = ramp(cyc, 0, 0.25);
+  if (cyc < 0.3) c.ring(fx, -CLEFT - vr - 4e-8 * (1 - dock), vr, C(0xFFFFF0A0), b, Math.max(1, c.px(4e-9)));
+  if (cyc > 0.25) {
+    const u = (cyc - 0.25) / 0.75;
+    for (let q = 0; q < 14; q++) {
+      const an = q * 0.45 + 0.3;
+      c.circle(fx + Math.cos(an) * 1.4e-7 * u * hash(q, 1, 971), -CLEFT + 2 * CLEFT * Math.min(1, u * 1.4) * (0.6 + 0.4 * hash(q, 2, 972)), 3e-9, C(0xFFFFE04A), b * (1 - u * 0.6), 1.5);
+    }
+  }
+  for (let q = -4; q <= 4; q++) { const x = q * 3.4e-8; c.rrect(x - 7e-9, CLEFT - 1e-8, x + 7e-9, CLEFT + 1.4e-8, 4e-9, C(0xFF3FCCA0), b); }
+  const lb = b * c.band(-6.6, -5.6);
+  c.label(S.vesicles.s, 1.2e-7, -1.6e-7, lb, WHITE, 12, 0, true);
+  c.label(S.cleft.s, c.hwX * 0.55, 0, lb, C(0xFFFFE6A0), 11, 0, true);
+  c.label(S.receptors.s, 0, CLEFT + 1.4e-8, lb, C(0xFFB8FFE6), 11, c.dp(16), true);
+  c.label(S.mitochondrion.s, mx, my, lb, C(0xFFFFF0C8), 11, -c.px(6e-8) - c.dp(12));
+  c.label(S.emLike.s, 0, c.hwY * 0.75, lb, C(0xFFE0E8F8), 11);
 }
