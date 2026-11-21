@@ -63,9 +63,9 @@
   .chip { border: 0; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
     background: #2B3170; color: #fff; white-space: nowrap; }
   .chip.on { background: var(--gold); color: var(--ink); }
-  #fact.deep, #fact.learn { cursor: pointer; }
+  #fact.deep, #fact.learn, #fact.expert { cursor: pointer; }
   #fact-more { display: none; color: var(--gold); font-weight: 700; font-size: 14px; margin-top: 6px; }
-  #fact.deep #fact-more, #fact.learn #fact-more { display: block; }
+  #fact.deep #fact-more, #fact.learn #fact-more, #fact.expert #fact-more { display: block; }
   #deep { width: min(94vw, 600px); max-width: none; height: min(88vh, 760px); padding: 0; }
   #deep[open] { display: flex; flex-direction: column; }
   #deep .head { padding: 18px 18px 8px; }
@@ -79,6 +79,21 @@
   #deep .foot { display: flex; gap: 6px; align-items: center; padding: 10px 14px 14px; border-top: 1px solid #ffffff14; }
   #deep .foot .grow { flex: 1; }
   #deep .btn.ghost:disabled { opacity: .35; cursor: default; }
+  #expert { width: min(94vw, 640px); max-width: none; height: min(90vh, 800px); padding: 0; background: #0C1A2E; }
+  #expert[open] { display: flex; flex-direction: column; }
+  #expert .head { padding: 18px 18px 8px; }
+  #expert .head h2 { margin: 0; }
+  #ex-sub { color: #9FD8FF; font-size: 13px; }
+  #ex-scroll { flex: 1; overflow-y: auto; padding: 0 18px 8px; -webkit-overflow-scrolling: touch; }
+  #ex-key { color: #FFE6A0; font-weight: 700; line-height: 1.5; margin: 6px 0 0; font-size: 15px; }
+  #expert h3 { color: #7FE0FF; font-size: 16px; margin: 16px 0 4px; }
+  #expert .txt { white-space: pre-line; line-height: 1.55; font-size: 15px; margin: 0; }
+  #ex-eq { background: #06101E; border-radius: 10px; padding: 10px 12px; overflow-x: auto; font: 14px/1.6 ui-monospace, Menlo, Consolas, monospace; color: #DDF3FF; white-space: pre; margin: 0; }
+  #ex-sol { display: none; background: #14304A; border-radius: 12px; padding: 12px; margin-top: 10px; white-space: pre-line; line-height: 1.55; }
+  #ex-refs { margin: 0; padding-left: 18px; color: #B8C8DA; font-size: 13px; line-height: 1.5; }
+  #expert .foot { display: flex; gap: 6px; align-items: center; padding: 10px 14px 14px; border-top: 1px solid #ffffff14; }
+  #expert .foot .grow { flex: 1; }
+  #expert .btn.ghost:disabled { opacity: .35; cursor: default; }
   #fact-body { font-size: 15px; line-height: 1.45; margin-top: 4px; }
   .row { display: flex; gap: 6px; width: calc(100% - 48px); max-width: 640px; margin: 10px 48px 0 0; }
   .pill { flex: 1; min-height: 44px; border: 0; border-radius: 22px; background: var(--panel); color: #fff; font: inherit;
@@ -131,7 +146,7 @@
   <div id="toast"></div>
   <div class="spacer"></div>
   <div id="fact" class="card">
-    <div class="tiers"><button class="chip" data-tier="0"></button><button class="chip" data-tier="1"></button><button class="chip" data-tier="2"></button></div>
+    <div class="tiers"><button class="chip" data-tier="0"></button><button class="chip" data-tier="1"></button><button class="chip" data-tier="2"></button><button class="chip" data-tier="3"></button></div>
     <div class="tiers branches" id="branches"></div>
     <div id="fact-head"></div>
     <div id="fact-body"></div>
@@ -187,6 +202,24 @@
   </div>
 </dialog>
 
+<dialog id="expert">
+  <div class="head"><h2 id="ex-title"></h2><div id="ex-sub"></div></div>
+  <div id="ex-scroll">
+    <p id="ex-key"></p>
+    <h3 id="h-eq"></h3><pre id="ex-eq"></pre>
+    <h3 id="h-derive"></h3><p class="txt" id="ex-derive"></p>
+    <h3 id="h-prob"></h3><p class="txt" id="ex-prob"></p>
+    <p style="margin-top:10px"><button id="ex-show" class="btn gold"></button></p>
+    <div id="ex-sol"></div>
+    <h3 id="h-open"></h3><p class="txt" id="ex-open"></p>
+    <h3 id="h-refs"></h3><ul id="ex-refs"></ul>
+  </div>
+  <div class="foot">
+    <button id="ex-up" class="btn ghost"></button><button id="ex-down" class="btn ghost"></button>
+    <span class="grow"></span><button id="ex-close" class="btn gold"></button>
+  </div>
+</dialog>
+
 <dialog id="app-sheet">
   <h2 id="app-title"></h2>
   <p id="app-body"></p>
@@ -200,6 +233,7 @@
 
 <script src="zoom.js"></script>
 <script src="data.js"></script>
+<script src="expert.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

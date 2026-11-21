@@ -233,6 +233,7 @@ function applyLang() {
   lastTitle = "";
   if (typeof renderChip === "function") renderChip();
   if ($("#deep").open) openDeep(deepUi.idx);
+  if ($("#expert").open) openExpert(exUi.idx);
   if ($("#lesson").open) openLesson(lsUi.lv, lsUi.i);
   if (typeof renderBranches === "function") renderBranches();
 }
@@ -249,7 +250,7 @@ $("#intro-go").addEventListener("click", () => { $("#intro").close(); store.set(
 // ── 심화 모드 ──────────────────────────────────────────────────────
 function deepFor(lv) { return DEEP.find(d => d.emoji === lv.emoji); }
 const deepUi = { idx: 0 };
-const TIER_LABEL = () => [U.tierKid.s, U.tierLearn.s, U.deepChip.s];
+const TIER_LABEL = () => [U.tierKid.s, U.tierLearn.s, U.deepChip.s, U.tierExpert.s];
 function setBranch(id, save = true) {
   const br = BRANCHES.find(b => b.id === id) || BRANCHES[0];
   BODY.branch = br.id; LEVELS = br.levels;
@@ -277,6 +278,7 @@ function renderChip() {
   lastFact = -1;
 }
 function shownTier(lv) {
+  if (st.tier === 3 && EXPERT[lv.emoji]) return 3;
   if (st.tier === 2 && deepFor(lv)) return 2;
   if (st.tier === 1 && (LESSONS[lv.emoji] || []).length) return 1;
   return 0;
@@ -305,7 +307,8 @@ document.querySelectorAll(".tiers .chip[data-tier]").forEach(b => b.addEventList
 }));
 ui.fact.addEventListener("click", () => {
   const t = shownTier(LEVELS[st.current]);
-  if (t === 2) { userAct(); openDeep(st.current); }
+  if (t === 3) { userAct(); openExpert(st.current); }
+  else if (t === 2) { userAct(); openDeep(st.current); }
   else if (t === 1) { userAct(); openLesson(st.current, 0); }
 });
 
@@ -375,6 +378,35 @@ $("#deep-up").addEventListener("click", () => { const i = deepUi.idx - 1; flyTo(
 $("#deep-down").addEventListener("click", () => { const i = deepUi.idx + 1; flyTo(i); openDeep(i); });
 $("#deep-close").addEventListener("click", () => $("#deep").close());
 $("#deep").addEventListener("click", e => { if (e.target === $("#deep")) $("#deep").close(); });
+
+// ── 🔬 전문(대학원·연구 입문) ─────────────────────────────────────
+const exUi = { idx: 0 };
+function openExpert(i) {
+  exUi.idx = i;
+  const lv = LEVELS[i], e = EXPERT[lv.emoji];
+  if (!e) return;
+  $("#ex-title").textContent = `🔬 ${lv.emoji} ${lv.name}`;
+  $("#ex-sub").textContent = U.expertLevel.s + "  ·  " + powerText(lv.logS);
+  $("#ex-key").textContent = Lx(e.t);
+  $("#h-eq").textContent = U.secEq.s; $("#ex-eq").textContent = e.eq.join("\n");
+  $("#h-derive").textContent = U.secDerive.s; $("#ex-derive").textContent = Lx(e.d);
+  $("#h-prob").textContent = U.secProblem.s; $("#ex-prob").textContent = Lx(e.p);
+  $("#ex-show").textContent = U.showSolution.s; $("#ex-show").style.display = "";
+  const sol = $("#ex-sol"); sol.textContent = "💡 " + Lx(e.s); sol.style.display = "none";
+  $("#h-open").textContent = U.secOpen.s; $("#ex-open").textContent = Lx(e.o);
+  $("#h-refs").textContent = U.secRefs.s;
+  $("#ex-refs").replaceChildren(...e.r.map(r => { const li = document.createElement("li"); li.textContent = r; return li; }));
+  $("#ex-up").textContent = U.bigger.s; $("#ex-up").disabled = i <= 0;
+  $("#ex-down").textContent = U.smaller.s; $("#ex-down").disabled = i >= LEVELS.length - 1;
+  $("#ex-close").textContent = U.close.s;
+  $("#ex-scroll").scrollTop = 0;
+  if (!$("#expert").open) $("#expert").showModal();
+}
+$("#ex-show").addEventListener("click", () => { $("#ex-sol").style.display = "block"; $("#ex-show").style.display = "none"; });
+$("#ex-up").addEventListener("click", () => { const i = exUi.idx - 1; flyTo(i); openExpert(i); });
+$("#ex-down").addEventListener("click", () => { const i = exUi.idx + 1; flyTo(i); openExpert(i); });
+$("#ex-close").addEventListener("click", () => $("#expert").close());
+$("#expert").addEventListener("click", e => { if (e.target === $("#expert")) $("#expert").close(); });
 
 // ── 손·마우스·키보드 ───────────────────────────────────────────────
 {
@@ -452,12 +484,13 @@ function updateUi() {
         ol.appendChild(li);
       });
       ui.factBody.replaceChildren(ol);
-    } else ui.factBody.textContent = tier === 2 ? deepFor(lv).key.s : lv.fact;
-    $("#fact-more").textContent = tier === 1 ? U.learnStart.s : U.readMore.s;
+    } else ui.factBody.textContent = tier === 3 ? Lx(EXPERT[lv.emoji].t) : tier === 2 ? deepFor(lv).key.s : lv.fact;
+    $("#fact-more").textContent = tier === 1 ? U.learnStart.s : tier === 3 ? U.expertMore.s : U.readMore.s;
     const br = BRANCHES.find(b => b.id === BODY.branch);
     $("#branches").style.display = lv.emoji === "🧒" || br.mid.includes(lv) ? "" : "none";
     ui.fact.classList.toggle("deep", tier === 2);
     ui.fact.classList.toggle("learn", tier === 1);
+    ui.fact.classList.toggle("expert", tier === 3);
     lastFact = key;
   }
   ui.fact.classList.toggle("on", showFact);
