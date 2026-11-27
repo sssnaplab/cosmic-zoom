@@ -855,7 +855,7 @@ function blanketChecker(c, x0, y0, x1, y1, alpha) {
 }
 
 /** 고른 갈래의 몸 부위(손·눈)가 화면 가운데에 오도록 아이 그림을 옮겨 그린다 */
-const FOCUS = { eye: [-0.338, -0.45], nerve: [-0.33, -0.455], blood: [-0.02, -0.14], heart: [-0.25, -0.17], brain: [-0.30, -0.49], hair: [-0.30, -0.585], tooth: [-0.30, -0.39] };
+const FOCUS = { eye: [-0.338, -0.45], nerve: [-0.33, -0.455], blood: [-0.02, -0.14], heart: [-0.25, -0.17], brain: [-0.30, -0.49], hair: [-0.30, -0.585], tooth: [-0.30, -0.39], ear: [-0.405, -0.445], lung: [-0.33, -0.14], bone: [-0.375, 0.40] };
 function branchFocus(id) { return FOCUS[id] || [0, 0]; }
 const BODY = { branch: "hand" };
 function drawKid(c, b, a) {
@@ -2201,4 +2201,238 @@ function drawApatite(c, b, a) {
   c.label(S.hydroxide.s, -XTAL_W * 1.6, -c.hwY * 0.15, lb, C(0xFFFFB8B0), 11, 0, true);
   c.label(S.fluoride.s, 0, 0, lb, C(0xFFB8F4FF), 12, c.dp(22), true);
   c.label(S.acid.s, XTAL_W + 5e-9, c.hwY * 0.45, lb, C(0xFFFFF0A0), 11, 0, true);
+}
+
+// ── 1.11.0 신체 갈래: 👂 귀 · 🫁 폐 · 🦴 뼈 (앱 BodyScenes4.kt 와 같은 그림) ──
+const COCH_X = -0.003, COCH_B = 0.0645;
+const COCHLEA = (() => { const n = 160, o = []; for (let q = 0; q < n; q++) { const th = q * 2.75 * 2 * Math.PI / (n - 1), r = 0.0045 * Math.exp(-COCH_B * th); o.push(COCH_X + r * Math.cos(th), r * Math.sin(th)); } return o; })();
+function ellipseFill(c, xm, ym, rxm, rym, color, a) { const g = c.g; c.alpha(a); g.fillStyle = color.s; g.beginPath(); g.ellipse(c.sx(xm), c.sy(ym), Math.max(0.1, c.px(rxm)), Math.max(0.1, c.px(rym)), 0, 0, 2 * Math.PI); g.fill(); }
+function drawEar(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFE6D6BC), a);
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -1.52), bone = C(0xFFF6EEDC);
+  c.glow(-0.006, 0, c.px(0.03), C(0x44FFF0D0), bb);
+  c.rrect(-0.05, -0.0042, -0.0115, 0.0042, 0.002, C(0xFFD9A07E), bb);
+  c.rrect(-0.05, -0.0032, -0.0115, 0.0032, 0.0016, C(0xFF3A2A2A), bb);
+  if (c.px(0.004) > 1) ellipseFill(c, -0.0112, 0, 0.0007, 0.0045, C(0xFFF2D0C0), bb);
+  c.circle(-0.0075, -0.0015, 0.0045, C(0xFF4A3434), bb * 0.85);
+  c.line(-0.011, 0, -0.009, -0.003, bone, bb, c.px(0.0009)); c.circle(-0.0088, -0.0034, 0.0011, bone, bb);
+  c.line(-0.0086, -0.0032, -0.0068, -0.0028, bone, bb, c.px(0.001)); c.line(-0.0068, -0.0028, -0.0062, -0.0006, bone, bb, c.px(0.0007));
+  c.line(-0.0064, -0.0006, -0.0052, -0.0004, bone, bb, c.px(0.0006)); c.line(-0.0064, -0.0012, -0.0052, -0.0012, bone, bb, c.px(0.0005));
+  [-0.6, 0.2, 1.1].forEach((an, k) => c.ring(-0.004 + Math.cos(an) * 0.0015, -0.0075 + Math.sin(an) * 0.0008, 0.0024 - k * 0.0003, C(0xFFE8A6B4), bb, Math.max(1.5, c.px(0.0007))));
+  const n = COCHLEA.length / 2, pink = C(0xFFE8A0B0);
+  for (let q = 0; q < n - 1; q++) c.line(COCHLEA[2 * q], COCHLEA[2 * q + 1], COCHLEA[2 * q + 2], COCHLEA[2 * q + 3], pink, bb, Math.max(1, c.px(0.0016 * Math.exp(-COCH_B * (q * 2.75 * 2 * Math.PI / (n - 1)) * 0.8))));
+  c.polyline(COCHLEA, C(0xFFB85A74), bb * 0.8, Math.max(1, c.px(0.0002)));
+  c.circle(0, 0, 0.0002, C(0xFFB85A74), bb * c.band(-3.0, -2.0));
+  const lb = bb * c.band(-2.0, -1.0);
+  c.label(S.earCanal.s, -0.028, 0, lb, WHITE, 11, -c.dp(18), true);
+  c.label(S.eardrum.s, -0.0112, 0.0045, lb, C(0xFF5A3020), 11, c.dp(12), true);
+  c.label(S.ossicles.s, -0.0078, -0.0045, lb, C(0xFF5A3020), 11, -c.dp(14), true);
+  c.label(S.semicircular.s, -0.004, -0.0105, lb, C(0xFF7A2A44), 11, -c.dp(6), true);
+  c.label(S.cochlea.s, COCH_X, 0.0052, lb, C(0xFF7A2A44), 12, c.dp(10), true);
+}
+
+const HC_SP = 9e-6, BUNDLE_COLS = [C(0xFF8E8E96), C(0xFFB4B4BC), C(0xFFE4E4EA)];
+function hcBundle(c, x, y, s, v, a) {
+  for (let row = 0; row <= 2; row++) {
+    const m = v ? 9 : 11;
+    for (let k = 0; k < m; k++) { const u = (k - (m - 1) / 2) / ((m - 1) / 2); c.circle(x + u * s * 0.5, y + (v ? Math.abs(u) * s * 0.35 : 0) - row * s * 0.09, s * (0.035 + row * 0.008), BUNDLE_COLS[row], a, 1); }
+  }
+}
+function drawHairCells(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF2A2A30), a);
+  if (b <= 0.003) return;
+  const far = 1 - ramp(2 * c.hwX / HC_SP + 2, 220, 360);
+  if (far <= 0.01) return;
+  const i0 = Math.floor(-c.hwX / HC_SP) - 1, i1 = Math.floor(c.hwX / HC_SP) + 1, top = C(0xFF4A4A52);
+  for (let i = i0; i <= i1; i++) [-2.4e-5, 0, 1e-5, 2e-5].forEach((ry, r) => {
+    const x = i * HC_SP + (r === 2 ? HC_SP * 0.33 : r === 3 ? HC_SP * 0.66 : 0);
+    if (!c.visible(x, ry, c.px(HC_SP))) return;
+    c.circle(x, ry + 1.5e-6, HC_SP * 0.42, top, b * far);
+    hcBundle(c, x, ry, r === 0 ? 7e-6 : 6e-6, r !== 0, b * far);
+  });
+  const lb = b * far * c.band(-4.7, -3.7);
+  c.label(S.innerHairCells.s, 0, -2.4e-5, lb, WHITE, 11, -c.dp(18), true);
+  c.label(S.outerHairCells.s, 0, 2e-5, lb, WHITE, 11, c.dp(22), true);
+  c.label(S.tonotopy.s, 0, -c.hwY * 0.72, lb, C(0xFFFFE6A0), 11);
+  c.label(S.semLike.s, 0, c.hwY * 0.75, lb, C(0xFFD0D0D8), 11);
+}
+
+function drawTipLinks(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF102030), a);
+  if (b <= 0.003) return;
+  const t = c.t, tilt = 0.05 * Math.sin(t * 3), open = ramp(tilt, 0, 0.04), rodW = 0.7e-7;
+  const xs = [-2.6e-7, 0, 2.5e-7], tops = [-4e-7, 0, 2.2e-7], bottom = c.hwY * 1.4, pivotY = 2e-6, shift = y => -tilt * (pivotY - y);
+  for (let k = 0; k <= 2; k++) {
+    const x = xs[k], top = tops[k];
+    c.polyFill([x - rodW + shift(bottom), bottom, x - rodW + shift(top), top + rodW, x + shift(top), top, x + rodW + shift(top), top + rodW, x + rodW + shift(bottom), bottom], null, C(0xFFB8BCC8), b);
+    c.line(x - rodW * 0.4 + shift(top), top + rodW * 1.5, x - rodW * 0.4 + shift(bottom), bottom, C(0x55FFFFFF), b, Math.max(1, c.px(1.5e-8)));
+  }
+  for (let k = 1; k <= 2; k++) {
+    const x0 = xs[k] + shift(tops[k]), y0 = tops[k], x1 = xs[k - 1] + rodW + shift(tops[k] - 1.6e-7), y1 = tops[k] - 1.6e-7;
+    c.line(x0, y0, x1, y1, C(0xFFFFE070), b, Math.max(1.5, c.px(8e-9)));
+    const g = k === 1 ? open : open * 0.8;
+    c.sphere(x0, y0, 1.6e-8, lerpC(C(0xFF3FCCA0), C(0xFF9AFFE0), g), b, 2);
+    c.glow(x0, y0, Math.max(c.dp(6), c.px(5e-8)), C(0xFF9AFFE0), b * g * 0.7);
+    if (g > 0.05) for (let q = 0; q < 4; q++) { const u = (t * 0.8 + q * 0.25) % 1; c.sphere(x0 + (q - 1.5) * 1e-8, y0 - 6e-8 + u * 1.6e-7, 9e-9, C(0xFFB98CFF), b * g, 1.5); }
+  }
+  const lb = b * c.band(-6.6, -5.6);
+  c.label(S.stereocilia.s, xs[0] + shift(0), 2e-7, lb, C(0xFF2A2A40), 11, 0, true);
+  c.label(S.tipLink.s, -1.6e-7, -1e-7, lb, C(0xFFFFF0A0), 12, -c.dp(10), true);
+  c.label(S.mechChannel.s, 0, 0, lb, C(0xFFB8FFE6), 11, c.dp(22), true);
+  c.label(S.soundBend.s, 0, c.hwY * 0.72, lb, C(0xFFE0E8F8), 11);
+}
+
+const LUNG_L = -0.035, LUNG_R = 0.08, TRACH_X = 0.0225;
+const LungSegs = (() => {
+  const segs = [[TRACH_X, -0.13, TRACH_X, -0.06, 0.016]];
+  function br(x, y, an, len, w, depth, seed) {
+    const x1 = x + Math.cos(an) * len, y1 = y + Math.sin(an) * len; segs.push([x, y, x1, y1, w]);
+    if (depth >= 7) return;
+    const sp = 0.45 + 0.1 * hash(seed, depth, 1101);
+    br(x1, y1, an - sp, len * 0.78, w * 0.72, depth + 1, seed * 2); br(x1, y1, an + sp, len * 0.74, w * 0.72, depth + 1, seed * 2 + 1);
+  }
+  br(TRACH_X, -0.06, Math.PI / 2 + 0.75, 0.03, 0.011, 1, 1); br(TRACH_X, -0.06, Math.PI / 2 - 0.65, 0.03, 0.010, 1, 7);
+  return segs;
+})();
+function lungShape(cx, flip) {
+  const n = 48, o = [];
+  for (let q = 0; q < n; q++) { const th = 2 * Math.PI * q / n, s = Math.sin(th), co = Math.cos(th); let x = co * 0.05 * (0.7 + 0.3 * (s + 1) / 2); if ((co > 0) !== flip) x *= 0.82; o.push(cx + x, 0.005 + s * 0.085); }
+  return o;
+}
+const LUNG_SHAPES = [lungShape(LUNG_L, false), lungShape(LUNG_R, true)];
+function drawLungs(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF4A2630), a);
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -0.52), br = 1 + 0.035 * Math.sin(c.t * 1.3), g = c.g, X = c.sx(TRACH_X), Y = c.sy(-0.06);
+  g.save(); g.translate(X, Y); g.scale(br, br); g.translate(-X, -Y);
+  c.circle(TRACH_X, 0, 0.13, C(0xFF4A2630), bb * 0.85);
+  for (const sh of LUNG_SHAPES) c.polyFill(sh, null, C(0xFFEFA0AE), bb);
+  const air = C(0xFFF6E2D0), hl = C(0xFFD8B8A8);
+  for (const s of LungSegs) { if (s[4] * c.k < 0.6) continue; c.line(s[0], s[1], s[2], s[3], air, bb, c.px(s[4])); if (c.px(s[4]) > 4) c.line(s[0], s[1], s[2], s[3], hl, bb * 0.5, c.px(s[4]) * 0.35); }
+  g.restore();
+  c.circle(0, 0, 0.001, C(0xFFB85A6A), bb * c.band(-2.2, -1.2));
+  const lb = bb * c.band(-1.2, -0.2);
+  c.label(S.trachea.s, TRACH_X, -0.11, lb, WHITE, 12, 0, true);
+  c.label(S.bronchi.s, TRACH_X, -0.045, lb, C(0xFF5A2030), 11, c.dp(16), true);
+  c.label(S.lungsLabel.s, LUNG_R, 0.06, lb, C(0xFF5A2030), 12, 0, true);
+}
+
+const ALV = 2.1e-4;
+function drawAlveoli(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFE6A6B2), a);
+  if (b <= 0.003) return;
+  const rowH = ALV * 0.87, far = 1 - ramp((2 * c.hwX / ALV + 3) * (2 * c.hwY / rowH + 3), 2500, 4000);
+  if (far <= 0.01) return;
+  const j0 = Math.floor(-c.hwY / rowH) - 1, j1 = Math.floor(c.hwY / rowH) + 1, i0 = Math.floor(-c.hwX / ALV) - 2, i1 = Math.floor(c.hwX / ALV) + 2;
+  const wall = C(0xFFD86A80), air = C(0xFFFCEAEE), cap = C(0xFFC21E2A), shine = C(0x55FFFFFF);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const x = (i + 0.5) * ALV + ((j & 1) === 1 ? ALV / 2 : 0) + (j !== 0 ? (hash(i, j, 1111) - 0.5) * ALV * 0.12 : 0);
+    const y = j * rowH + (j !== 0 ? (hash(i, j, 1112) - 0.5) * ALV * 0.12 : 0), r = ALV * (0.47 + (j !== 0 ? 0.05 * hash(i, j, 1113) : 0));
+    if (!c.visible(x, y, c.px(r))) continue;
+    c.circle(x, y, r, wall, b * far); c.circle(x, y, r * 0.86, air, b * far); c.glow(x - r * 0.3, y - r * 0.3, c.px(r * 0.6), shine, b * far);
+    if (c.px(r) > 15) { const pts = []; for (let q = 0; q <= 28; q++) { const th = 2 * Math.PI * q / 28, rr = r * (0.93 + 0.05 * Math.sin(th * 7 + i + j)); pts.push(x + Math.cos(th) * rr, y + Math.sin(th) * rr); } c.polyline(pts, cap, b * far * 0.8, Math.max(1, c.px(ALV * 0.035))); }
+  }
+  const lb = b * far * c.band(-3.5, -2.5);
+  c.label(S.alveolus.s, ALV * 0.5, 0, lb, C(0xFF6A2030), 12, 0, true);
+  c.label(S.capillaryNet.s, 0, 0, lb, C(0xFF8A1020), 11, c.dp(24), true);
+  c.label(S.alveoliCount.s, 0, c.hwY * 0.72, lb, C(0xFF6A2030), 11);
+}
+
+function drawAirBlood(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFD8ECFF), a);
+  if (b <= 0.003) return;
+  const far = c.hwX * 1.3, H = c.hwY * 1.3;
+  c.rect(-far, -H, far, -3.6e-7, C(0xFFD8ECFF), b); c.rect(-far, -3.6e-7, far, -3.3e-7, C(0xFFFFD84A), b);
+  c.rect(-far, -3.3e-7, far, -1.4e-7, C(0xFFF2B8C4), b); c.rect(-far, -1.4e-7, far, -0.4e-7, C(0xFFC8C0D0), b);
+  c.rect(-far, -0.4e-7, far, 1.6e-7, C(0xFFEFA8B8), b); c.rect(-far, 1.6e-7, far, H, C(0xFFF6D8A8), b);
+  c.disc(c.sx(0), c.sy(1.4e-6), c.px(1e-6), C(0xFFC21E2A), b);
+  if (c.px(2e-8) > 2) { const step = 4e-8, n0 = Math.floor(-far / step), n1 = Math.floor(far / step); if (n1 - n0 < 300) for (let n = n0; n <= n1; n++) { const x = n * step; c.sphere(x, -3.6e-7, 1.2e-8, C(0xFFFFE680), b, 1); c.line(x, -3.5e-7, x, -3.3e-7, C(0xFFD8B040), b, Math.max(1, c.px(4e-9))); } }
+  for (let q = 0; q < 14; q++) {
+    const u = (c.t * 0.15 + q / 14) % 1, x = (hash(q, 1, 1121) - 0.5) * 2 * c.hwX * 0.9, yO = -c.hwY + u * (c.hwY + 1e-6);
+    c.sphere(x - 1e-8, yO, 1.3e-8, C(0xFF5AB0FF), b, 2); c.sphere(x + 1e-8, yO, 1.3e-8, C(0xFF5AB0FF), b, 2);
+    c.sphere((hash(q, 2, 1122) - 0.5) * 2 * c.hwX * 0.9, 1e-6 - u * (c.hwY + 1e-6), 1.3e-8, C(0xFF9A9AA0), b * 0.9, 2);
+  }
+  const lb = b * c.band(-6.0, -5.0);
+  c.label(S.alveolarAir.s, -c.hwX * 0.55, -c.hwY * 0.55, lb, C(0xFF2A4A6A), 11, 0, true);
+  c.label(S.surfactant.s, c.hwX * 0.35, -3.45e-7, lb, C(0xFF5A4000), 11, -c.dp(14), true);
+  c.label(S.barrier.s, 0, 0, lb, C(0xFF4A2040), 12, 0, true);
+  c.label(S.o2co2.s, 0, c.hwY * 0.75, lb, C(0xFF4A2A10), 11);
+}
+
+const BONE_X = 0.01;
+function drawBone(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFB0545A), a);
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -1.22), ivory = C(0xFFF2EAD6);
+  c.rect(BONE_X - 0.012, -0.012, BONE_X + 0.012, 0.06, ivory, bb);
+  c.rect(BONE_X - 0.008, -0.01, BONE_X + 0.008, 0.06, C(0xFFE8B868), bb);
+  c.circle(BONE_X, -0.02, 0.0175, C(0xFFBFE0F0), bb); c.circle(BONE_X, -0.02, 0.0165, ivory, bb); c.circle(BONE_X, -0.02, 0.015, C(0xFFD88A80), bb);
+  if (c.px(0.0015) > 1.5) c.grid(0.0022, 1500, (i, j, x, y) => {
+    const cx = x + 0.0011, cy = y + 0.0011, dx = cx - BONE_X, dy = cy + 0.02;
+    const inside = cy < -0.008 ? dx * dx + dy * dy < 0.0145 * 0.0145 : Math.abs(dx) < 0.0072 && cy < 0.004;
+    if (!inside) return;
+    const an = Math.PI / 2 + dx * 25 + (hash(i, j, 1131) - 0.5) * 0.6, an2 = an + Math.PI / 2 + (hash(i, j, 1132) - 0.5) * 0.5;
+    c.line(cx - Math.cos(an) * 0.0013, cy - Math.sin(an) * 0.0013, cx + Math.cos(an) * 0.0013, cy + Math.sin(an) * 0.0013, ivory, bb, Math.max(1, c.px(0.00045)));
+    c.line(cx, cy, cx + Math.cos(an2) * 0.0011, cy + Math.sin(an2) * 0.0011, ivory, bb, Math.max(1, c.px(0.00035)));
+  });
+  if (c.px(0.001) > 2) for (let q = 0; q < 60; q++) c.circle(BONE_X + (hash(q, 0, 1133) - 0.5) * 0.015, -0.006 + hash(q, 1, 1134) * 0.06, 0.0004, C(0xFFC0303A), bb * 0.6);
+  c.circle(0, 0, 0.0003, C(0xFFC8BCA0), bb * c.band(-3.0, -2.0));
+  const lb = bb * c.band(-1.8, -0.8);
+  c.label(S.cartilage.s, BONE_X, -0.0375, lb, C(0xFF2A5070), 11, -c.dp(10), true);
+  c.label(S.spongyBone.s, BONE_X, -0.02, lb, C(0xFF5A2A20), 12, 0, true);
+  c.label(S.compactBone.s, 0, 0, lb, C(0xFF5A4A30), 11, -c.dp(18), true);
+  c.label(S.marrow.s, BONE_X, 0.025, lb, C(0xFF6A3A10), 12, 0, true);
+}
+
+const OST = 2.2e-4;
+function drawOsteons(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFE4D8BE), a);
+  if (b <= 0.003) return;
+  const rowH = OST * 0.87, far = 1 - ramp((2 * c.hwX / OST + 3) * (2 * c.hwY / rowH + 3), 1800, 3000);
+  if (far <= 0.01) return;
+  const j0 = Math.floor(-c.hwY / rowH) - 1, j1 = Math.floor(c.hwY / rowH) + 1, i0 = Math.floor(-c.hwX / OST) - 2, i1 = Math.floor(c.hwX / OST) + 2;
+  const lam = C(0xFFC8B890), cell = C(0xFF6A5030);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const center = i === 0 && j === 0;
+    const x = i * OST + ((j & 1) === 1 ? OST / 2 : 0) + 6e-5 + (center ? 0 : (hash(i, j, 1141) - 0.5) * OST * 0.15), y = j * rowH + (center ? 0 : (hash(i, j, 1142) - 0.5) * OST * 0.15);
+    const r = OST * (0.44 + (center ? 0 : 0.05 * hash(i, j, 1143)));
+    if (!c.visible(x, y, c.px(r))) continue;
+    c.circle(x, y, r, C(0xFFF0E6CE), b * far);
+    if (c.px(r) > 10) for (let q = 1; q <= 7; q++) c.ring(x, y, r * q / 7.5, lam, b * far * 0.8, Math.max(1, c.px(r * 0.025)));
+    c.ring(x, y, r, C(0xFFA89060), b * far, Math.max(1, c.px(r * 0.04)));
+    c.circle(x, y, r * 0.16, C(0xFF7A4030), b * far); c.circle(x, y, r * 0.07, C(0xFFD03A3A), b * far, 1);
+    if (c.px(r) > 25) for (let q = 0; q < 14; q++) {
+      const an = q * 2 * Math.PI / 14 + hash(i, j, 1144 + q), rr = r * (0.3 + 0.6 * hash(i * 7 + q, j, 1145)), cx = x + Math.cos(an) * rr, cy = y + Math.sin(an) * rr;
+      for (let e = 0; e < 4; e++) { const ea = an + (e - 1.5) * 0.7; c.line(cx, cy, cx + Math.cos(ea) * r * 0.08, cy + Math.sin(ea) * r * 0.08, cell, b * far * 0.6, 1); }
+      c.circle(cx, cy, r * 0.025, cell, b * far, 1);
+    }
+  }
+  const lb = b * far * c.band(-4.0, -3.0);
+  c.label(S.osteon.s, 6e-5, -OST * 0.44, lb, C(0xFF4A3410), 12, -c.dp(14), true);
+  c.label(S.haversian.s, 6e-5, 0, lb, WHITE, 11, c.dp(22), true);
+  c.label(S.osteocyte.s, -c.hwX * 0.5, c.hwY * 0.5, lb, C(0xFF4A3410), 11, 0, true);
+}
+
+const FIB_D = 1e-7, FIB_GAP = 1.25e-7, D_PERIOD = 6.7e-8;
+function drawCollagenMineral(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF2A2420), a);
+  if (b <= 0.003) return;
+  const j0 = Math.floor(-c.hwY / FIB_GAP) - 1, j1 = Math.floor(c.hwY / FIB_GAP) + 1, far = c.hwX * 1.3;
+  for (let j = j0; j <= j1; j++) {
+    const yc = j * FIB_GAP, off = hash(j, 0, 1151) * D_PERIOD;
+    c.rrect(-far, yc - FIB_D / 2, far, yc + FIB_D / 2, FIB_D / 2, C(0xFFD8C8A8), b);
+    const n0 = Math.floor((-far - off) / D_PERIOD), n1 = Math.floor((far - off) / D_PERIOD);
+    if (n1 - n0 < 400) for (let n = n0; n <= n1; n++) {
+      const x = n * D_PERIOD + off;
+      c.rect(x, yc - FIB_D / 2 + 5e-9, x + D_PERIOD * 0.54, yc + FIB_D / 2 - 5e-9, C(0xFFA89878), b * 0.8);
+      for (let m = 0; m < 3; m++) { const py = yc + (m - 1) * FIB_D * 0.28 + (hash(n, j * 3 + m, 1152) - 0.5) * 8e-9; c.rect(x + 4e-9, py - 2e-9, x + D_PERIOD * 0.5, py + 2e-9, C(0xFFBFF0FF), b * 0.9); }
+    }
+    if (c.px(1e-9) > 1) for (let m = 0; m < 5; m++) { const yy = yc + (m - 2) * FIB_D * 0.18; c.line(-far, yy, far, yy, C(0x44FFFFFF), b, Math.max(1, c.px(1.2e-9))); }
+  }
+  const lb = b * c.band(-7.0, -6.0);
+  c.label(S.collagenFibril.s, -c.hwX * 0.5, 0, lb, C(0xFF3A2A10), 12, -c.dp(4), true);
+  c.label(S.dPeriod.s, 0, FIB_GAP, lb, C(0xFF3A2A10), 11, 0, true);
+  c.label(S.apatitePlates.s, c.hwX * 0.5, 0, lb, C(0xFF1A4050), 11, c.dp(4), true);
+  c.label(S.boneComposite.s, 0, c.hwY * 0.75, lb, C(0xFFF0E6D0), 11);
 }
