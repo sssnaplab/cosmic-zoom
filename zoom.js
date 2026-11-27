@@ -855,7 +855,7 @@ function blanketChecker(c, x0, y0, x1, y1, alpha) {
 }
 
 /** 고른 갈래의 몸 부위(손·눈)가 화면 가운데에 오도록 아이 그림을 옮겨 그린다 */
-const FOCUS = { eye: [-0.338, -0.45], nerve: [-0.33, -0.455], blood: [-0.02, -0.14], heart: [-0.25, -0.17], brain: [-0.30, -0.49] };
+const FOCUS = { eye: [-0.338, -0.45], nerve: [-0.33, -0.455], blood: [-0.02, -0.14], heart: [-0.25, -0.17], brain: [-0.30, -0.49], hair: [-0.30, -0.585], tooth: [-0.30, -0.39] };
 function branchFocus(id) { return FOCUS[id] || [0, 0]; }
 const BODY = { branch: "hand" };
 function drawKid(c, b, a) {
@@ -2018,4 +2018,187 @@ function drawSynapse(c, b, a) {
   c.label(S.receptors.s, 0, CLEFT + 1.4e-8, lb, C(0xFFB8FFE6), 11, c.dp(16), true);
   c.label(S.mitochondrion.s, mx, my, lb, C(0xFFFFF0C8), 11, -c.px(6e-8) - c.dp(12));
   c.label(S.emLike.s, 0, c.hwY * 0.75, lb, C(0xFFE0E8F8), 11);
+}
+
+// ── 1.10.0 신체 갈래: 💇 머리카락 · 🦷 치아 (앱 BodyScenes3.kt 와 같은 그림) ──
+const FOL = 7e-4, HAIR_W = 7e-5;
+function hairPath(i, j, x0, y0) {
+  const n = 10, len = 6e-3 + 4e-3 * hash(i, j, 1003), an0 = -0.25 + (hash(i, j, 1004) - 0.5) * 0.5, curl = (hash(i, j, 1005) - 0.5) * 0.25, pts = [];
+  for (let q = 0; q < n; q++) { const u = q / (n - 1), an = an0 + curl * u * 4; pts.push(x0 + Math.cos(an) * len * u, y0 + Math.sin(an) * len * u + Math.sin(u * 6 + i) * 2e-4); }
+  return pts;
+}
+function drawHair(c, b, a) {
+  if (a > 0.003) {
+    c.fill(C(0xFFE6B596), a);
+    const col = C(0xFFD69A7A), w = Math.max(1, c.px(2e-5));
+    c.grid(1.2e-3, 1500, (i, j, x, y) => { const an = hash(i, j, 1001) * Math.PI; c.line(x, y, x + Math.cos(an) * 9e-4, y + Math.sin(an) * 9e-4, col, a * 0.5, w); });
+  }
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -1.82), far = 1 - ramp((2 * c.hwX / FOL + 2) * (2 * c.hwY / FOL + 2), 3000, 5000);
+  const hw = Math.max(1, c.px(HAIR_W)), dark = C(0xFF2E1C10), shine = C(0xFF8A6040), root = C(0xFF8A5040);
+  if (far > 0.01) c.grid(FOL, 5000, (i, j, x, y) => {
+    if (i === 0 && j === 0) return;
+    const fx = x + FOL * hash(i, j, 1006), fy = y + FOL * hash(i, j, 1007);
+    if (hash(i, j, 1008) > 0.55 || (Math.abs(fy) < 2.2e-4 && fx > -1e-3)) return;
+    const pts = hairPath(i, j, fx, fy);
+    c.polyline(pts, dark, bb * far, hw);
+    if (hw > 3) c.polyline(pts, shine, bb * far * 0.5, hw * 0.3);
+    c.circle(fx, fy, HAIR_W * 1.6, root, bb * far * 0.7, 1);
+  });
+  c.line(-1.5e-3, 0, c.hwX * 1.2, 0, dark, bb, hw);
+  if (hw > 3) c.line(-1.5e-3, -HAIR_W * 0.2, c.hwX * 1.2, -HAIR_W * 0.2, shine, bb * 0.6, hw * 0.3);
+  c.circle(-1.5e-3, 0, HAIR_W * 1.8, root, bb, 1);
+  const lb = bb * c.band(-2.3, -1.3);
+  c.label(S.follicle.s, -1.5e-3, 0, lb, C(0xFF4A2010), 11, c.dp(20), true);
+  c.label(S.hairShaft.s, c.hwX * 0.4, 0, lb, C(0xFF2A1408), 12, -c.dp(16), true);
+  c.label(S.scalp.s, -c.hwX * 0.5, c.hwY * 0.55, lb, C(0xFF6A3A28), 11, 0, true);
+}
+
+const SHAFT_R = 3.5e-5, SCALE_P = 7e-6;
+function drawCuticle(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF16161A), a);
+  if (b <= 0.003) return;
+  const far = c.hwX * 1.2, g = c.g, top = c.sy(-SHAFT_R), bot = c.sy(SHAFT_R);
+  const gr = g.createLinearGradient(0, top, 0, bot);
+  [[0, 0xFF5A5A5E], [0.25, 0xFFC8C8CC], [0.55, 0xFF9A9AA0], [1, 0xFF3A3A40]].forEach(([p, col]) => gr.addColorStop(p, C(col).s));
+  c.alpha(b); g.fillStyle = gr; g.fillRect(0, top, c.w, bot - top);
+  const m0 = Math.floor(-far / SCALE_P) - 1, m1 = Math.floor(far / SCALE_P) + 1;
+  if (m1 - m0 < 900) for (let m = m0; m <= m1; m++) {
+    const x0 = m * SCALE_P + (hash(m, 0, 1011) - 0.5) * SCALE_P * 0.4, n = 12, pts = [], pts2 = [];
+    for (let q = 0; q < n; q++) {
+      const u = q / (n - 1) * 2 - 1, bulge = (1 - u * u) * SCALE_P * (0.5 + 0.4 * hash(m, q, 1012));
+      pts.push(x0 + bulge, u * SHAFT_R * 0.98); pts2.push(x0 + bulge - 8e-7, u * SHAFT_R * 0.98);
+    }
+    c.polyline(pts, C(0xFFEDEDF2), b * 0.85, Math.max(1, c.px(6e-7)));
+    c.polyline(pts2, C(0xFF2A2A30), b * 0.6, Math.max(1, c.px(8e-7)));
+  }
+  const lb = b * c.band(-4.4, -3.4);
+  c.label(S.cuticle.s, 0, -SHAFT_R, lb, WHITE, 12, -c.dp(18), true);
+  c.label(S.hairWidth.s, 0, SHAFT_R, lb, C(0xFFE0E0E8), 11, c.dp(18));
+  c.label(S.semLike.s, 0, c.hwY * 0.75, lb, C(0xFFD0D0D8), 11);
+}
+
+const COIL_R = 5e-10, COIL_P = 1.4e-8;
+function coil(c, y0, alpha, phase, main) {
+  const step = 1.5e-10, n0 = Math.floor(-c.hwX * 1.2 / step), n1 = Math.floor(c.hwX * 1.2 / step);
+  if (n1 - n0 > 1200) { c.line(-c.hwX, y0, c.hwX, y0, C(0xFFB07AD8), alpha, Math.max(1, c.px(2e-9))); return; }
+  const cols = [C(0xFFC084F0), C(0xFF6CC8E8)], rings = [C(0xFFE6C8FF), C(0xFFC8F0FF)];
+  for (let strand = 0; strand <= 1; strand++) {
+    const pts = [];
+    for (let n = n0; n <= n1; n++) { const x = n * step; pts.push(x, y0 + Math.sin(2 * Math.PI * x / COIL_P + phase + strand * Math.PI) * COIL_R * 1.6); }
+    c.polyline(pts, cols[strand], alpha, Math.max(1.5, c.px(4.5e-10)));
+    if (main && c.px(1e-10) > 1.5) for (let x = n0 * step; x < n1 * step; x += 5.4e-10) c.ring(x, y0 + Math.sin(2 * Math.PI * x / COIL_P + phase + strand * Math.PI) * COIL_R * 1.6, 2.3e-10, rings[strand], alpha * 0.6, Math.max(1, c.px(5e-11)));
+  }
+}
+function drawKeratin(c, b, a) {
+  if (a > 0.003) { c.fill(C(0xFF16101C), a); for (const k of [-3, -2, -1, 1, 2, 3]) coil(c, k * 4.5e-9, a * 0.35, k * 1.3, false); }
+  if (b <= 0.003) return;
+  coil(c, 0, b, c.t * 0.15, true);
+  for (let q = -6; q <= 6; q++) {
+    const x = q * 3.1e-9 + 0.8e-9, side = q % 2 === 0 ? 1 : -1;
+    c.line(x, side * 1e-9, x, side * 3.4e-9, C(0xFFFFD84A), b * 0.9, Math.max(1, c.px(1.5e-10)));
+    c.sphere(x, side * 1e-9, 1.8e-10, C(0xFFFFE070), b, 1); c.sphere(x, side * 3.4e-9, 1.8e-10, C(0xFFFFE070), b, 1);
+  }
+  const lb = b * c.band(-8.2, -7.2);
+  c.label(S.coiledCoil.s, 0, -COIL_R * 2, lb, C(0xFFE6D0FF), 12, -c.dp(20), true);
+  c.label(S.disulfide.s, 0.8e-9, 3.4e-9, lb, C(0xFFFFF0A0), 11, c.dp(18), true);
+  c.label(S.permNote.s, 0, c.hwY * 0.72, lb, C(0xFFE0D8F0), 11);
+}
+
+const TOY = 0.0072;
+const ENAMEL = [-0.0056, -0.0010, -0.0060, -0.0050, -0.0045, -0.0080, -0.0030, -0.0074, -0.0012, -0.0086, 0.0005, -0.0076, 0.0022, -0.0087, 0.0040, -0.0079, 0.0058, -0.0052, 0.0055, -0.0010, 0.0045, 0.0008, -0.0046, 0.0008];
+const DENTIN = [-0.0040, -0.0030, -0.0032, -0.0060, -0.0015, -0.0066, 0.0005, -0.0060, 0.0022, -0.0068, 0.0038, -0.0058, 0.0042, -0.0030, 0.0050, -0.0005, 0.0047, 0.0030, 0.0040, 0.0080, 0.0030, 0.0125, 0.0022, 0.0128, 0.0016, 0.0080, 0.0010, 0.0035, -0.0010, 0.0035, -0.0016, 0.0080, -0.0024, 0.0128, -0.0032, 0.0125, -0.0042, 0.0080, -0.0048, 0.0030, -0.0051, -0.0005];
+const PULP = [-0.0022, -0.0018, -0.0016, -0.0040, -0.0006, -0.0030, 0.0006, -0.0030, 0.0016, -0.0042, 0.0023, -0.0018, 0.0024, 0.0012, -0.0024, 0.0012];
+const shiftY = (arr, dy) => arr.map((v, i) => i % 2 === 0 ? v : v + dy);
+function drawTooth(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFF4A1C24), a);
+  if (b <= 0.003) return;
+  const bb = xray(c, b, -1.6), g = c.g, X = c.sx(0), Y = c.sy(0);
+  g.save(); g.translate(X, Y); g.scale(1, -1); g.translate(-X, -Y);
+  c.glow(0, TOY, c.px(0.016), C(0x55FFF0E0), bb);
+  c.rrect(-0.014, TOY - 0.0003, 0.014, TOY + 0.02, 0.003, C(0xFFE88A96), bb);
+  c.rect(-0.014, TOY + 0.0035, 0.014, TOY + 0.02, C(0xFFE8DCC6), bb);
+  if (c.px(2e-4) > 1) c.grid(1.2e-3, 1200, (i, j, x, y) => {
+    if (y < TOY + 0.0035 || y > TOY + 0.019 || Math.abs(x) > 0.0135) return;
+    c.circle(x + 1.2e-3 * hash(i, j, 1021), y + 1.2e-3 * hash(i, j, 1022), 3e-4 * (0.5 + hash(i, j, 1023)), C(0xFFC8B89A), bb * 0.8);
+  });
+  c.polyFill(shiftY(ENAMEL, TOY), null, C(0xFFF6F2E8), bb);
+  c.polyFill(shiftY(DENTIN, TOY), null, C(0xFFE8D2A0), bb);
+  if (c.px(1e-3) > 6) for (let k = 0; k < 40; k++) {
+    const an = -Math.PI + Math.PI * k / 39, x0 = Math.cos(an) * 0.0016, y0 = TOY - 0.0012 + Math.sin(an) * 0.0016;
+    c.line(x0, y0, x0 + Math.cos(an) * 0.0022, y0 + Math.sin(an) * 0.0022, C(0xFFD0B47A), bb * 0.6, Math.max(1, c.px(4e-5)));
+  }
+  c.polyFill(shiftY(PULP, TOY), null, C(0xFFE05A6A), bb);
+  c.line(-0.0019, TOY + 0.001, -0.0028, TOY + 0.0122, C(0xFFE05A6A), bb, c.px(6e-4));
+  c.line(0.0019, TOY + 0.001, 0.0026, TOY + 0.0122, C(0xFFE05A6A), bb, c.px(6e-4));
+  c.line(-0.0021, TOY, -0.0027, TOY + 0.011, C(0xFFFFE070), bb * 0.8, Math.max(1, c.px(1.5e-4)));
+  c.line(0.0021, TOY, 0.0025, TOY + 0.011, C(0xFFB0202C), bb * 0.8, Math.max(1, c.px(1.5e-4)));
+  g.restore();
+  c.circle(0, 0, 2.5e-4, C(0xFFDCD6C8), bb * c.band(-3.2, -2.0));
+  const lb = bb * c.band(-2.1, -1.1);
+  c.label(S.enamel.s, 0, 0, lb, C(0xFF5A4A30), 12, c.dp(16), true);
+  c.label(S.dentin.s, -0.0035, -(TOY - 0.0035), lb, C(0xFF6A4A10), 11, 0, true);
+  c.label(S.pulp.s, 0, -(TOY - 0.0005), lb, WHITE, 11, 0, true);
+  c.label(S.gum.s, -0.0095, -(TOY + 0.0015), lb, C(0xFF7A1A30), 11, 0, true);
+  c.label(S.jawBone.s, 0.009, -(TOY + 0.012), lb, C(0xFF6A5A3A), 11, 0, true);
+}
+
+const ROD = 5.5e-6;
+function drawEnamelRods(c, b, a) {
+  if (a > 0.003) c.fill(C(0xFFE8E0CC), a);
+  if (b <= 0.003) return;
+  const rowH = ROD * 0.9, far = 1 - ramp((2 * c.hwX / ROD + 3) * (2 * c.hwY / rowH + 3), 3000, 5000);
+  if (far <= 0.01) return;
+  const j0 = Math.floor(-c.hwY / rowH) - 1, j1 = Math.floor(c.hwY / rowH) + 1, i0 = Math.floor(-c.hwX / ROD) - 2, i1 = Math.floor(c.hwX / ROD) + 2;
+  const edge = C(0xFF9A8E74), head = C(0xFFF4EEDC), tex = C(0xFFC8BC9E), tailCol = C(0xFFE2D8BE), rr = ROD * 0.42;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const x = i * ROD + ((j & 1) === 1 ? ROD / 2 : 0) + (hash(i, j, 1031) - 0.5) * ROD * 0.08, y = j * rowH;
+    if (!c.visible(x, y, c.px(ROD))) continue;
+    c.polyFill([x - rr * 0.7, y + rr * 0.5, x, y + rr * 2, x + rr * 0.7, y + rr * 0.5], null, tailCol, b * far);
+    c.circle(x, y, rr, head, b * far);
+    const arc = [];
+    for (let q = 0; q <= 16; q++) { const th = Math.PI * 0.15 + Math.PI * 1.7 * q / 16 + Math.PI / 2; arc.push(x + Math.cos(th) * rr, y + Math.sin(th) * rr); }
+    c.polyline(arc, edge, b * far, Math.max(1, c.px(ROD * 0.06)));
+    if (c.px(rr) > 12) for (let q = 0; q < 6; q++) { const yy = y - rr * 0.6 + q * rr * 0.24; c.line(x - rr * 0.5, yy, x + rr * 0.5, yy - rr * 0.15, tex, b * far * 0.6, Math.max(1, c.px(ROD * 0.02))); }
+  }
+  const lb = b * far * c.band(-5.0, -4.0);
+  c.label(S.enamelRod.s, 0, 0, lb, C(0xFF4A3A20), 12, -c.dp(20), true);
+  c.label(S.semLike.s, 0, c.hwY * 0.72, lb, C(0xFF4A3A20), 11);
+}
+
+const HA_A = 9.4e-10, XTAL_W = 6e-9;
+function drawApatite(c, b, a) {
+  if (a > 0.003) {
+    c.fill(C(0xFF14181E), a);
+    for (let k = -6; k <= 6; k++) {
+      if (k === 0) continue;
+      const x0 = k * XTAL_W * 2.2 + (hash(k, 0, 1041) - 0.5) * 2e-9;
+      c.rrect(x0 - XTAL_W, -c.hwY * 1.3, x0 + XTAL_W, c.hwY * 1.3, XTAL_W * 0.5, C(0xFF3A4652), a * 0.9);
+      c.line(x0 - XTAL_W * 0.3, -c.hwY * 1.3, x0 - XTAL_W * 0.3, c.hwY * 1.3, C(0x334FD0FF), a, Math.max(1, c.px(4e-10)));
+    }
+  }
+  if (b <= 0.003) return;
+  c.rrect(-XTAL_W, -c.hwY * 1.3, XTAL_W, c.hwY * 1.3, XTAL_W * 0.4, C(0xFF243440), b);
+  const i0 = Math.floor(-XTAL_W / HA_A), i1 = Math.floor(XTAL_W / HA_A), rowH = HA_A * 0.866;
+  const j0 = Math.floor(-c.hwY / rowH) - 1, j1 = Math.floor(c.hwY / rowH) + 1;
+  const detail = 1 - ramp((i1 - i0 + 1) * (j1 - j0 + 1), 900, 1600);
+  const oh = C(0xFFFF6A5A), fl = C(0xFF7FE6FF), ca = C(0xFF7ED67A), po = C(0xFFFFA840);
+  if (detail > 0.01) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const x = i * HA_A + ((j & 1) === 1 ? HA_A / 2 : 0), y = j * rowH;
+    if (Math.abs(x) > XTAL_W - 2e-10) continue;
+    c.sphere(x, y, 1.4e-10, i === 0 && j === 0 ? fl : oh, b * detail, 1);
+    c.sphere(x + HA_A * 0.33, y - rowH * 0.3, 1.6e-10, ca, b * detail, 1);
+    c.sphere(x - HA_A * 0.33, y + rowH * 0.3, 1.6e-10, ca, b * detail, 1);
+    c.sphere(x + HA_A * 0.2, y + rowH * 0.35, 1.5e-10, po, b * detail, 1);
+  }
+  for (let n = 0; n < 10; n++) {
+    const u = (c.t * 0.12 + n * 0.1) % 1, y = -c.hwY + u * 2 * c.hwY, x = XTAL_W + 2e-9 + hash(n, 1, 1042) * 6e-9 * (1 - u * 0.6);
+    c.sphere(x, y, 1.2e-10, C(0xFFFFF07A), b * 0.8, 1.5);
+  }
+  const lb = b * c.band(-8.0, -7.0);
+  c.label(S.calcium.s, -XTAL_W * 1.6, -c.hwY * 0.45, lb, C(0xFFB8F0B0), 11, 0, true);
+  c.label(S.phosphate.s, -XTAL_W * 1.6, -c.hwY * 0.3, lb, C(0xFFFFD0A0), 11, 0, true);
+  c.label(S.hydroxide.s, -XTAL_W * 1.6, -c.hwY * 0.15, lb, C(0xFFFFB8B0), 11, 0, true);
+  c.label(S.fluoride.s, 0, 0, lb, C(0xFFB8F4FF), 12, c.dp(22), true);
+  c.label(S.acid.s, XTAL_W + 5e-9, c.hwY * 0.45, lb, C(0xFFFFF0A0), 11, 0, true);
 }

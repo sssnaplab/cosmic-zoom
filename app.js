@@ -37,6 +37,8 @@ const BRANCHES = [
   { id: "blood", emoji: "🩸", name: L("Blood", "혈액", "血液", "血液"), levels: TOP_LEVELS.concat(BLOOD_LEVELS, BOTTOM_LEVELS), mid: BLOOD_LEVELS },
   { id: "heart", emoji: "❤️", name: L("Heart", "심장", "心臓", "心脏"), levels: TOP_LEVELS.concat(HEART_LEVELS, BOTTOM_LEVELS), mid: HEART_LEVELS },
   { id: "brain", emoji: "🧠", name: L("Brain", "뇌", "脳", "大脑"), levels: TOP_LEVELS.concat(BRAIN_LEVELS, BOTTOM_LEVELS), mid: BRAIN_LEVELS },
+  { id: "hair", emoji: "💇", name: L("Hair", "머리카락", "髪", "头发"), levels: TOP_LEVELS.concat(HAIR_LEVELS, BOTTOM_LEVELS), mid: HAIR_LEVELS },
+  { id: "tooth", emoji: "🦷", name: L("Tooth", "치아", "歯", "牙齿"), levels: TOP_LEVELS.concat(TOOTH_LEVELS, BOTTOM_LEVELS), mid: TOOTH_LEVELS },
 ];
 const START_LEVEL = LEVELS.findIndex(l => l.emoji === "🧒");
 const MAX_LOG = LEVELS[0].logS + 0.6;
